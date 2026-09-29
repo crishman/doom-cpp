@@ -1,6 +1,6 @@
 # Tests
 
-Configure, build, and run the tests from the repository root:
+The engine and tests require a C++20 compiler. Configure, build, and run the tests from the repository root:
 
 ```sh
 cmake --preset warn

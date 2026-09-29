@@ -2,14 +2,14 @@ cmake_minimum_required(VERSION 3.20)
 
 project(doom-cpp DESCRIPTION "Linux Doom 1.10, ported to C++" LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(DOOM_LEGACY_WARNINGS "Show warnings from legacy sources" OFF)
 option(DOOM_WARNINGS_AS_ERRORS "Enable warnings and treat them as errors" OFF)
 
-# Engine sources use C++17 while they are migrated incrementally.
+# Engine sources and tests require C++20.
 # The DOS drivers in ipx/ and sersrc/ are not part of the Linux executable.
 set(DOOM_SOURCES
     linuxdoom-1.10/am_map.cpp

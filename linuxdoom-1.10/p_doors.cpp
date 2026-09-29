@@ -134,7 +134,7 @@ void T_VerticalDoor (vldoor_t* door)
 		break;
 		
 	      case normal:
-	      case close:
+	      case doorClose:
 		door->sector->specialdata = NULL;
 		P_RemoveThinker (&door->thinker);  // unlink and free
 		break;
@@ -153,7 +153,7 @@ void T_VerticalDoor (vldoor_t* door)
 	    switch(door->type)
 	    {
 	      case blazeClose:
-	      case close:		// DO NOT GO BACK UP!
+	      case doorClose:		// DO NOT GO BACK UP!
 		break;
 		
 	      default:
@@ -184,7 +184,7 @@ void T_VerticalDoor (vldoor_t* door)
 		
 	      case close30ThenOpen:
 	      case blazeOpen:
-	      case open:
+	      case doorOpen:
 		door->sector->specialdata = NULL;
 		P_RemoveThinker (&door->thinker);  // unlink and free
 		break;
@@ -302,7 +302,7 @@ EV_DoDoor
 			 sfx_bdcls);
 	    break;
 	    
-	  case close:
+	  case doorClose:
 	    door->topheight = P_FindLowestCeilingSurrounding(sec);
 	    door->topheight -= 4*FRACUNIT;
 	    door->direction = -1;
@@ -329,7 +329,7 @@ EV_DoDoor
 	    break;
 	    
 	  case normal:
-	  case open:
+	  case doorOpen:
 	    door->direction = 1;
 	    door->topheight = P_FindLowestCeilingSurrounding(sec);
 	    door->topheight -= 4*FRACUNIT;
@@ -476,7 +476,7 @@ EV_VerticalDoor
       case 32:
       case 33:
       case 34:
-	door->type = open;
+	door->type = doorOpen;
 	line->special = 0;
 	break;
 	

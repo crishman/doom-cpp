@@ -6,7 +6,7 @@
 #
 CXX= g++
 
-CXXFLAGS=-std=c++17 -g -Wall -fno-strict-aliasing -fwrapv -DNORMALUNIX -DLINUX # -DUSEASM
+CXXFLAGS=-std=c++20 -g -Wall -fno-strict-aliasing -fwrapv -DNORMALUNIX -DLINUX # -DUSEASM
 LDFLAGS=-L/usr/X11R6/lib
 LIBS=-lXext -lX11 -lnsl -lm
 
