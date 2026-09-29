@@ -529,6 +529,7 @@ void M_ReadSaveStrings(void)
 	    LoadMenu[i].status = 0;
 	    continue;
 	}
+	memset(savegamestrings[i], 0, sizeof(savegamestrings[i]));
 	const auto count = read(handle, savegamestrings[i], SAVESTRINGSIZE);
 	close (handle);
 	savegamestrings[i][SAVESTRINGSIZE - 1] = 0;

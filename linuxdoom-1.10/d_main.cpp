@@ -1105,7 +1105,7 @@ void D_DoomMain (void)
 	// for statistics driver
 	extern  void*	statcopy;                            
 
-	statcopy = reinterpret_cast<void*>(strtoull(myargv[p+1], nullptr, 0));
+	statcopy = reinterpret_cast<void*>(strtoull(myargv[p+1], nullptr, 10));
 	printf ("External statistics registered.\n");
     }
     
