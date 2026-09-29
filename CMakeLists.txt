@@ -35,7 +35,11 @@ function(doom_target_flags target)
         if(DOOM_LEGACY_WARNINGS OR DOOM_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE /W4)
         else()
-            target_compile_options(${target} PRIVATE /w)
+            # /W0 rather than /w: the Visual Studio generator recognises the
+            # /W0-/W4 spellings and folds them into the project's WarningLevel,
+            # whereas /w lands in AdditionalOptions and collides with the
+            # default level, which is the D9025 warning on every target.
+            target_compile_options(${target} PRIVATE /W0)
         endif()
         if(DOOM_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE /WX)
