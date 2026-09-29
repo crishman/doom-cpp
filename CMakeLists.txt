@@ -9,6 +9,63 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(DOOM_LEGACY_WARNINGS "Show warnings from legacy sources" OFF)
 option(DOOM_WARNINGS_AS_ERRORS "Enable warnings and treat them as errors" OFF)
 
+# The engine's platform layer is X11 and POSIX (i_video, i_sound, i_net,
+# i_system), so the game executable is Unix-only. The tests touch none of it
+# and build anywhere, which is what lets CI run them on more than one OS.
+if(UNIX)
+    set(DOOM_BUILD_GAME_DEFAULT ON)
+else()
+    set(DOOM_BUILD_GAME_DEFAULT OFF)
+endif()
+option(DOOM_BUILD_GAME "Build the doom executable (requires X11; Unix only)"
+       ${DOOM_BUILD_GAME_DEFAULT})
+
+# Warning and arithmetic flags are spelled differently per compiler family, and
+# MSVC rejects the GCC forms outright. Everything that needs them goes through
+# here so the two stay in step.
+function(doom_target_flags target)
+    if(MSVC)
+        if(DOOM_LEGACY_WARNINGS OR DOOM_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /W4)
+        else()
+            target_compile_options(${target} PRIVATE /w)
+        endif()
+        if(DOOM_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        # Load-bearing, not tuning: the tree type-puns constantly and its
+        # fixed-point maths relies on signed overflow wrapping. MSVC has no
+        # equivalent spelling; it does not perform either transformation.
+        target_compile_options(${target} PRIVATE -fno-strict-aliasing -fwrapv)
+        if(DOOM_LEGACY_WARNINGS OR DOOM_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        else()
+            target_compile_options(${target} PRIVATE -w)
+        endif()
+        if(DOOM_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
+# Every test target was the same eight lines; only the sources, the target name
+# and the registered ctest names differed. TEST is the ctest name and is kept
+# verbatim so existing names and docs/testing.md stay correct.
+function(doom_add_test target)
+    cmake_parse_arguments(ARG "" "TEST" "SOURCES;CASES" ${ARGN})
+    add_executable(${target} ${ARG_SOURCES})
+    target_include_directories(${target} PRIVATE linuxdoom-1.10)
+    doom_target_flags(${target})
+    if(ARG_CASES)
+        foreach(case ${ARG_CASES})
+            add_test(NAME ${ARG_TEST}.${case} COMMAND ${target} ${case})
+        endforeach()
+    else()
+        add_test(NAME ${ARG_TEST} COMMAND ${target})
+    endif()
+endfunction()
+
 # Engine sources and tests require C++20.
 # The DOS drivers in ipx/ and sersrc/ are not part of the Linux executable.
 set(DOOM_SOURCES
@@ -76,101 +133,47 @@ set(DOOM_SOURCES
     linuxdoom-1.10/z_zone.cpp
 )
 
-add_executable(doom ${DOOM_SOURCES})
-target_include_directories(doom PRIVATE linuxdoom-1.10)
-target_compile_definitions(doom PRIVATE NORMALUNIX LINUX)
+if(DOOM_BUILD_GAME)
+    add_executable(doom ${DOOM_SOURCES})
+    target_include_directories(doom PRIVATE linuxdoom-1.10)
+    target_compile_definitions(doom PRIVATE NORMALUNIX LINUX)
+    doom_target_flags(doom)
 
-# Retain the legacy arithmetic and aliasing behavior.
-target_compile_options(doom PRIVATE -fno-strict-aliasing -fwrapv)
-if(DOOM_LEGACY_WARNINGS OR DOOM_WARNINGS_AS_ERRORS)
-    target_compile_options(doom PRIVATE -Wall -Wextra -Wpedantic)
-else()
-    target_compile_options(doom PRIVATE -w)
-endif()
-if(DOOM_WARNINGS_AS_ERRORS)
-    target_compile_options(doom PRIVATE -Werror)
-endif()
+    find_package(X11 REQUIRED)
+    if(NOT X11_XShm_INCLUDE_PATH)
+        message(FATAL_ERROR "X11/extensions/XShm.h is required (install libxext-dev).")
+    endif()
+    target_link_libraries(doom PRIVATE X11::X11 X11::Xext m)
 
-find_package(X11 REQUIRED)
-if(NOT X11_XShm_INCLUDE_PATH)
-    message(FATAL_ERROR "X11/extensions/XShm.h is required (install libxext-dev).")
+    install(TARGETS doom RUNTIME DESTINATION bin)
 endif()
-target_link_libraries(doom PRIVATE X11::X11 X11::Xext m)
-
-install(TARGETS doom RUNTIME DESTINATION bin)
 
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(random_tests tests/random_tests.cpp linuxdoom-1.10/m_random.cpp)
-    target_include_directories(random_tests PRIVATE linuxdoom-1.10)
-    target_compile_options(random_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(random_tests PRIVATE -Werror)
-    endif()
-    foreach(case sequence wraparound reset independence)
-        add_test(NAME random.${case} COMMAND random_tests ${case})
-    endforeach()
+    # These compile no part of the platform layer, so they need neither X11 nor
+    # NORMALUNIX/LINUX. The limit macros in doomtype.h resolve identically with
+    # and without LINUX, so dropping the define changes nothing.
+    doom_add_test(random_tests TEST random
+        SOURCES tests/random_tests.cpp linuxdoom-1.10/m_random.cpp
+        CASES   sequence wraparound reset independence)
 
-    add_executable(fixed_mul_tests tests/fixed_mul_tests.cpp)
-    target_include_directories(fixed_mul_tests PRIVATE linuxdoom-1.10)
-    target_compile_options(fixed_mul_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(fixed_mul_tests PRIVATE -Werror)
-    endif()
-    add_test(NAME fixed.multiply COMMAND fixed_mul_tests)
-endif()
+    doom_add_test(fixed_mul_tests TEST fixed.multiply
+        SOURCES tests/fixed_mul_tests.cpp)
 
-if(BUILD_TESTING)
-    add_executable(render_boundary_tests tests/render_boundary_tests.cpp
-        linuxdoom-1.10/v_video.cpp linuxdoom-1.10/m_bbox.cpp linuxdoom-1.10/tables.cpp
-        linuxdoom-1.10/m_fixed.cpp)
-    target_include_directories(render_boundary_tests PRIVATE linuxdoom-1.10)
-    target_compile_definitions(render_boundary_tests PRIVATE NORMALUNIX LINUX)
-    target_compile_options(render_boundary_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(render_boundary_tests PRIVATE -Werror)
-    endif()
-    add_test(NAME render.boundaries COMMAND render_boundary_tests)
-endif()
+    doom_add_test(render_boundary_tests TEST render.boundaries
+        SOURCES tests/render_boundary_tests.cpp linuxdoom-1.10/v_video.cpp
+                linuxdoom-1.10/m_bbox.cpp linuxdoom-1.10/tables.cpp
+                linuxdoom-1.10/m_fixed.cpp)
 
-if(BUILD_TESTING)
-    add_executable(savegame_tests tests/savegame_tests.cpp linuxdoom-1.10/p_saveg.cpp)
-    target_include_directories(savegame_tests PRIVATE linuxdoom-1.10)
-    target_compile_definitions(savegame_tests PRIVATE NORMALUNIX LINUX)
-    target_compile_options(savegame_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(savegame_tests PRIVATE -Werror)
-    endif()
-    add_test(NAME savegame.alignment COMMAND savegame_tests)
-endif()
+    doom_add_test(savegame_tests TEST savegame.alignment
+        SOURCES tests/savegame_tests.cpp linuxdoom-1.10/p_saveg.cpp)
 
-if(BUILD_TESTING)
-    add_executable(fixed_div_tests tests/fixed_div_tests.cpp linuxdoom-1.10/m_fixed.cpp)
-    target_include_directories(fixed_div_tests PRIVATE linuxdoom-1.10)
-    target_compile_options(fixed_div_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(fixed_div_tests PRIVATE -Werror)
-    endif()
-    add_test(NAME fixed.divide COMMAND fixed_div_tests)
-endif()
+    doom_add_test(fixed_div_tests TEST fixed.divide
+        SOURCES tests/fixed_div_tests.cpp linuxdoom-1.10/m_fixed.cpp)
 
-if(BUILD_TESTING)
-    add_executable(lighting_tests tests/lighting_tests.cpp)
-    target_include_directories(lighting_tests PRIVATE linuxdoom-1.10)
-    target_compile_options(lighting_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(lighting_tests PRIVATE -Werror)
-    endif()
-    add_test(NAME render.lighting COMMAND lighting_tests)
-endif()
+    doom_add_test(lighting_tests TEST render.lighting
+        SOURCES tests/lighting_tests.cpp)
 
-if(BUILD_TESTING)
-    add_executable(stair_tests tests/stair_tests.cpp linuxdoom-1.10/p_floor.cpp)
-    target_include_directories(stair_tests PRIVATE linuxdoom-1.10)
-    target_compile_definitions(stair_tests PRIVATE NORMALUNIX LINUX)
-    target_compile_options(stair_tests PRIVATE -Wall -Wextra -Wpedantic)
-    if(DOOM_WARNINGS_AS_ERRORS)
-        target_compile_options(stair_tests PRIVATE -Werror)
-    endif()
-    add_test(NAME floor.stairs COMMAND stair_tests)
+    doom_add_test(stair_tests TEST floor.stairs
+        SOURCES tests/stair_tests.cpp linuxdoom-1.10/p_floor.cpp)
 endif()
