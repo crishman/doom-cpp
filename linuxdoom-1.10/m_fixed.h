@@ -65,8 +65,56 @@ static_assert(FixedMul(std::numeric_limits<fixed_t>::min(), -FRACUNIT)
               == std::numeric_limits<fixed_t>::min());
 static_assert(FixedMul(std::numeric_limits<fixed_t>::max(), 2 * FRACUNIT) == -2);
 
-fixed_t FixedDiv	(fixed_t a, fixed_t b);
-fixed_t FixedDiv2	(fixed_t a, fixed_t b);
+namespace fixed_detail
+{
+// Invalid direct divisions remain runtime engine errors. Such calls cannot be
+// used in a constant expression; valid calls need no engine dependencies.
+[[noreturn]] void DivisionError(const char* message);
+
+constexpr std::uint32_t Magnitude(fixed_t value)
+{
+    return value < 0 ? static_cast<std::uint32_t>(-static_cast<std::int64_t>(value))
+                     : static_cast<std::uint32_t>(value);
+}
+}
+
+constexpr fixed_t FixedDiv2(fixed_t a, fixed_t b)
+{
+    if (b == 0)
+        fixed_detail::DivisionError("FixedDiv: divide by zero");
+
+    // Preserve the original floating-point evaluation and truncation.
+    const double quotient = static_cast<double>(a) / static_cast<double>(b) * FRACUNIT;
+    if (quotient >= 2147483648.0 || quotient < -2147483648.0)
+        fixed_detail::DivisionError("FixedDiv: quotient out of range");
+    return static_cast<fixed_t>(quotient);
+}
+
+constexpr fixed_t FixedDiv(fixed_t a, fixed_t b)
+{
+    // This deliberately saturates early, matching the original gameplay rule.
+    // Magnitudes are unsigned so INT_MIN and zero divisors are well-defined.
+    if ((fixed_detail::Magnitude(a) >> 14) >= fixed_detail::Magnitude(b))
+        return (a < 0) != (b < 0) ? std::numeric_limits<fixed_t>::min()
+                                  : std::numeric_limits<fixed_t>::max();
+    return FixedDiv2(a, b);
+}
+
+static_assert(FixedDiv(1, 3) == 21845);
+static_assert(FixedDiv(-1, 3) == -21845);
+static_assert(FixedDiv(1, -3) == -21845);
+static_assert(FixedDiv(-1, -3) == 21845);
+static_assert(FixedDiv(16383, 1) == 1073676288);
+static_assert(FixedDiv(16384, 1) == std::numeric_limits<fixed_t>::max());
+static_assert(FixedDiv(-16384, 1) == std::numeric_limits<fixed_t>::min());
+static_assert(FixedDiv2(16384, 1) == 1073741824);
+static_assert(FixedDiv(0, 0) == std::numeric_limits<fixed_t>::max());
+static_assert(FixedDiv(-1, 0) == std::numeric_limits<fixed_t>::min());
+static_assert(FixedDiv(std::numeric_limits<fixed_t>::min(),
+                       std::numeric_limits<fixed_t>::min()) == FRACUNIT);
+static_assert(FixedDiv(0, std::numeric_limits<fixed_t>::min()) == 0);
+static_assert(FixedDiv2(std::numeric_limits<fixed_t>::min(), FRACUNIT)
+              == std::numeric_limits<fixed_t>::min());
 
 
 
