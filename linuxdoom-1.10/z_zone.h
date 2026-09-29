@@ -28,6 +28,7 @@
 #define __Z_ZONE__
 
 #include <stdio.h>
+#include <cstddef>
 
 //
 // ZONE MEMORY
@@ -55,7 +56,7 @@ void    Z_ChangeTag2 (void *ptr, int tag);
 int     Z_FreeMemory (void);
 
 
-typedef struct memblock_s
+typedef struct alignas(std::max_align_t) memblock_s
 {
     int			size;	// including the header and possibly tiny fragments
     void**		user;	// NULL if a free block
@@ -70,11 +71,11 @@ typedef struct memblock_s
 // prior to really call the function in question.
 //
 #define Z_ChangeTag(p,t) \
-{ \
+do { \
       if (( (memblock_t *)( (byte *)(p) - sizeof(memblock_t)))->id!=0x1d4a11) \
-	  I_Error("Z_CT at "__FILE__":%i",__LINE__); \
-	  Z_ChangeTag2(p,t); \
-};
+	  I_Error("Z_CT at " __FILE__":%i",__LINE__); \
+      Z_ChangeTag2(p,t); \
+} while (0)
 
 
 

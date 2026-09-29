@@ -48,7 +48,8 @@ extern	byte*		screens[5];
 
 extern  int	dirtybox[4];
 
-extern	byte	gammatable[5][256];
+// Five immutable gamma ramps; their count is checked at the definition.
+extern const byte gammatable[][256];
 extern	int	usegamma;
 
 

@@ -75,8 +75,8 @@ extern fixed_t		ds_ystep;
 // start of a 64*64 tile image
 extern byte*		ds_source;		
 
-extern byte*		translationtables;
-extern byte*		dc_translation;
+extern const byte* const translationtables;
+extern const byte* dc_translation;
 
 
 // Span blitting for rows, floor/ceiling.
@@ -93,9 +93,6 @@ R_InitBuffer
   int		height );
 
 
-// Initialize color translation tables,
-//  for player rendering etc.
-void	R_InitTranslationTables (void);
 
 
 

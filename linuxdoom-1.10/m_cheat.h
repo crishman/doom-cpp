@@ -27,9 +27,13 @@
 // CHEAT SEQUENCE PACKAGE
 //
 
-#define SCRAMBLE(a) \
-((((a)&1)<<7) + (((a)&2)<<5) + ((a)&4) + (((a)&8)<<1) \
- + (((a)&16)>>1) + ((a)&32) + (((a)&64)>>5) + (((a)&128)>>7))
+constexpr unsigned char ScrambleCheatByte(unsigned char value)
+{
+    return static_cast<unsigned char>(
+        ((value & 1u) << 7) | ((value & 2u) << 5) | (value & 4u)
+        | ((value & 8u) << 1) | ((value & 16u) >> 1) | (value & 32u)
+        | ((value & 64u) >> 5) | ((value & 128u) >> 7));
+}
 
 typedef struct
 {

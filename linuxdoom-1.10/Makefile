@@ -4,9 +4,9 @@
 #
 # $Log:$
 #
-CC=  gcc  # gcc or g++
+CXX= g++
 
-CFLAGS=-g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
+CXXFLAGS=-std=c++20 -g -Wall -fno-strict-aliasing -fwrapv -DNORMALUNIX -DLINUX # -DUSEASM
 LDFLAGS=-L/usr/X11R6/lib
 LIBS=-lXext -lX11 -lnsl -lm
 
@@ -84,11 +84,11 @@ clean:
 	rm -f linux/*
 
 $(O)/linuxxdoom:	$(OBJS) $(O)/i_main.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
 	-o $(O)/linuxxdoom $(LIBS)
 
-$(O)/%.o:	%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(O)/%.o:	%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 #############################################################
 #

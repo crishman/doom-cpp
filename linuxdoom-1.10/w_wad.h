@@ -23,6 +23,9 @@
 #ifndef __W_WAD__
 #define __W_WAD__
 
+#include <cstddef>
+#include <climits>
+
 
 #ifdef __GNUG__
 #pragma interface
@@ -69,17 +72,27 @@ extern	int		numlumps;
 void    W_InitMultipleFiles (char** filenames);
 void    W_Reload (void);
 
-int	W_CheckNumForName (char* name);
-int	W_GetNumForName (char* name);
+int	W_CheckNumForName (const char* name);
+int	W_GetNumForName (const char* name);
 
 int	W_LumpLength (int lump);
 void    W_ReadLump (int lump, void *dest);
 
 void*	W_CacheLumpNum (int lump, int tag);
-void*	W_CacheLumpName (char* name, int tag);
+void*	W_CacheLumpName (const char* name, int tag);
 
 
 
+
+// These structures describe bytes on disk, independent of native pointer size.
+static_assert(CHAR_BIT == 8);
+static_assert(sizeof(int) == 4);
+static_assert(sizeof(wadinfo_t) == 12);
+static_assert(offsetof(wadinfo_t, numlumps) == 4);
+static_assert(offsetof(wadinfo_t, infotableofs) == 8);
+static_assert(sizeof(filelump_t) == 16);
+static_assert(offsetof(filelump_t, size) == 4);
+static_assert(offsetof(filelump_t, name) == 8);
 
 #endif
 //-----------------------------------------------------------------------------

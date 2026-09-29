@@ -1,6 +1,10 @@
 {
   "version": 2,
-  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "base",
@@ -12,31 +16,46 @@
       "name": "dev",
       "inherits": "base",
       "displayName": "Debug + ASan/UBSan",
-      "description": "Day-to-day build. Sanitizers find real bugs here immediately. Doom leaks by design at exit; run with ASAN_OPTIONS=detect_leaks=0 to mute LeakSanitizer.",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
-        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "DOOM_LEGACY_WARNINGS": "OFF",
+        "DOOM_WARNINGS_AS_ERRORS": "OFF"
       }
     },
     {
       "name": "rel",
       "inherits": "base",
       "displayName": "RelWithDebInfo",
-      "description": "Optimised build with symbols. Use this one to actually play.",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "DOOM_LEGACY_WARNINGS": "OFF",
+        "DOOM_WARNINGS_AS_ERRORS": "OFF"
+      }
     },
     {
       "name": "warn",
       "inherits": "dev",
-      "displayName": "Debug + all legacy warnings",
-      "description": "Surveys what is left to port. Expect thousands of lines.",
-      "cacheVariables": { "DOOM_LEGACY_WARNINGS": "ON" }
+      "displayName": "Debug + strict warnings as errors",
+      "cacheVariables": {
+        "DOOM_LEGACY_WARNINGS": "ON",
+        "DOOM_WARNINGS_AS_ERRORS": "ON"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "dev", "configurePreset": "dev" },
-    { "name": "rel", "configurePreset": "rel" },
-    { "name": "warn", "configurePreset": "warn" }
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "rel",
+      "configurePreset": "rel"
+    },
+    {
+      "name": "warn",
+      "configurePreset": "warn"
+    }
   ]
 }
