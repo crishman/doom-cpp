@@ -91,6 +91,16 @@ static_assert(FineAngleIndex(0xffffffffu) == FINEMASK);
 
 
 
+// Tangent repeats every half turn, unlike the sine table.
+constexpr unsigned FineTangentIndex(angle_t angle)
+{
+    return FineAngleIndex(angle) & (FINEANGLES / 2 - 1);
+}
+static_assert(FineTangentIndex(0) == 0);
+static_assert(FineTangentIndex(ANG180) == 0);
+static_assert(FineTangentIndex(4733u << ANGLETOFINESHIFT) == 637);
+static_assert(FineTangentIndex(0xffffffffu) == FINEANGLES / 2 - 1);
+
 // Effective size is 2049;
 // The +1 size is to handle the case when x==y
 //  without additional checking.

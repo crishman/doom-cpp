@@ -57,6 +57,10 @@ int main()
     for (unsigned index = 0; index < FINEANGLES; ++index)
     {
         const angle_t angle = (index << ANGLETOFINESHIFT) | 0x7ffffu;
+        if (FineTangentIndex(angle) != index % (FINEANGLES / 2)
+            || FineTangentIndex(angle + ANG180) != FineTangentIndex(angle)
+            || finetangent[FineTangentIndex(angle)] != finetangent[index % (FINEANGLES / 2)])
+            return EXIT_FAILURE;
         if (FineAngleIndex(angle) != index || finesine[FineAngleIndex(angle)] != finesine[index])
             return EXIT_FAILURE;
     }

@@ -31,6 +31,10 @@ The renderer boundary test also checks coincident-point distance (the zero-divis
 
 `fixed.divide` checks signs, truncation toward zero, the original early saturation threshold, zero divisors, and `INT_MIN`. It compares ordinary inputs with the original floating-point calculation over an edge matrix, saturation boundaries, and 65,536 deterministic pairs. Direct `FixedDiv2` failures are checked using an `I_Error` test substitute. Both division functions support constant evaluation for valid inputs; invalid direct divisions remain runtime engine errors and cannot form constant expressions. `FixedDiv(0, 0)` deliberately retains its legacy `INT_MAX` result.
 
-The immutable gamma table is checked during compilation: five 256-entry ramps, per-row checksums of all original values, endpoint values, and nondecreasing brightness within and across gamma levels. These checks run whenever `v_video.c` is compiled; no runtime gamma-table test is needed.
+The immutable gamma table is checked during compilation: five 256-entry ramps, per-row checksums of all original values, endpoint values, and nondecreasing brightness within and across gamma levels. These checks run whenever `v_video.cpp` is compiled; no runtime gamma-table test is needed.
 
 `render.lighting` compares all 2,048 precomputed distance-lighting indices against the original runtime calculation and verifies colormap pointer binding to two different buffers. Compile-time assertions check dimensions, index bounds, brightness ordering, representative endpoints, and the original table checksum. Lighting that depends on view size remains calculated at runtime.
+
+The renderer boundary test checks tangent indices across both half turns, including fractional angle bits and the reported index 4733. Tangent lookups wrap with their half-turn period.
+
+`floor.stairs` builds and completes a two-sector staircase in both normal and turbo modes, using allocator memory filled with nonzero bytes. It checks initialized mover type/crush fields, speed, destination heights, unchanged sector textures/specials, and thinker removal.
