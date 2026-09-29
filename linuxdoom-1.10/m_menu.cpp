@@ -1314,7 +1314,7 @@ M_WriteText
 	
     while(1)
     {
-	c = *ch++;
+	c = static_cast<unsigned char>(*ch++);
 	if (!c)
 	    break;
 	if (c == '\n')

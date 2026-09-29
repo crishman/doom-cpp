@@ -300,7 +300,7 @@ void F_TextWrite (void)
 	count = 0;
     for ( ; count ; count-- )
     {
-	c = *ch++;
+	c = static_cast<unsigned char>(*ch++);
 	if (!c)
 	    break;
 	if (c == '\n')
@@ -311,7 +311,7 @@ void F_TextWrite (void)
 	}
 		
 	c = toupper(c) - HU_FONTSTART;
-	if (c < 0 || c> HU_FONTSIZE)
+	if (c < 0 || c >= HU_FONTSIZE)
 	{
 	    cx += 4;
 	    continue;
@@ -534,11 +534,11 @@ void F_CastPrint (const char* text)
 	
     while (ch)
     {
-	c = *ch++;
+	c = static_cast<unsigned char>(*ch++);
 	if (!c)
 	    break;
 	c = toupper(c) - HU_FONTSTART;
-	if (c < 0 || c> HU_FONTSIZE)
+	if (c < 0 || c >= HU_FONTSIZE)
 	{
 	    width += 4;
 	    continue;
@@ -553,11 +553,11 @@ void F_CastPrint (const char* text)
     ch = text;
     while (ch)
     {
-	c = *ch++;
+	c = static_cast<unsigned char>(*ch++);
 	if (!c)
 	    break;
 	c = toupper(c) - HU_FONTSTART;
-	if (c < 0 || c> HU_FONTSIZE)
+	if (c < 0 || c >= HU_FONTSIZE)
 	{
 	    cx += 4;
 	    continue;
