@@ -176,7 +176,7 @@ EV_DoPlat
 	plat->type = type;
 	plat->sector = sec;
 	plat->sector->specialdata = plat;
-	plat->thinker.function.acp1 = (actionf_p1) T_PlatRaise;
+	plat->thinker.function = P_Thinker<T_PlatRaise>;
 	plat->crush = false;
 	plat->tag = line->tag;
 	
@@ -265,8 +265,7 @@ void P_ActivateInStasis(int tag)
 	    && (activeplats[i])->status == in_stasis)
 	{
 	    (activeplats[i])->status = (activeplats[i])->oldstatus;
-	    (activeplats[i])->thinker.function.acp1
-	      = (actionf_p1) T_PlatRaise;
+	    (activeplats[i])->thinker.function = P_Thinker<T_PlatRaise>;
 	}
 }
 
@@ -281,7 +280,7 @@ void EV_StopPlat(line_t* line)
 	{
 	    (activeplats[j])->oldstatus = (activeplats[j])->status;
 	    (activeplats[j])->status = in_stasis;
-	    (activeplats[j])->thinker.function.acv = (actionf_v)NULL;
+	    (activeplats[j])->thinker.function = nullptr;
 	}
 }
 

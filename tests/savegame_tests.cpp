@@ -58,12 +58,14 @@ void Link(thinker_t* thinker)
     thinker->prev = &thinkercap;
 }
 
+// Takes an already-thunked think_t rather than the typed thinker, so T can no
+// longer be deduced from it and is named at each call site.
 template<class T>
-void CheckSpecial(byte* begin, void (*action)(T*), int marker)
+void CheckSpecial(byte* begin, think_t action, int marker)
 {
     T original{};
     original.sector = sectors + 1;
-    original.thinker.function.acp1 = reinterpret_cast<actionf_p1>(action);
+    original.thinker.function = action;
     Link(&original.thinker);
     if (!action)
         activeceilings[0] = reinterpret_cast<ceiling_t*>(&original);
@@ -104,7 +106,7 @@ int main()
         mobj_t actor{};
         actor.state = states + 5;
         actor.player = players;
-        actor.thinker.function.acp1 = reinterpret_cast<actionf_p1>(P_MobjThinker);
+        actor.thinker.function = P_Thinker<P_MobjThinker>;
         Link(&actor.thinker);
         save_p = begin;
         P_ArchiveThinkers();
@@ -116,13 +118,13 @@ int main()
         Require(reinterpret_cast<std::uintptr_t>(saved_actor.player) == 1);
         Require(actor.state == states + 5 && actor.player == players);
 
-        CheckSpecial(begin, T_MoveCeiling, 0);
+        CheckSpecial<ceiling_t>(begin, P_Thinker<T_MoveCeiling>, 0);
         CheckSpecial<ceiling_t>(begin, nullptr, 0);
-        CheckSpecial(begin, T_VerticalDoor, 1);
-        CheckSpecial(begin, T_MoveFloor, 2);
-        CheckSpecial(begin, T_PlatRaise, 3);
-        CheckSpecial(begin, T_LightFlash, 4);
-        CheckSpecial(begin, T_StrobeFlash, 5);
-        CheckSpecial(begin, T_Glow, 6);
+        CheckSpecial<vldoor_t>(begin, P_Thinker<T_VerticalDoor>, 1);
+        CheckSpecial<floormove_t>(begin, P_Thinker<T_MoveFloor>, 2);
+        CheckSpecial<plat_t>(begin, P_Thinker<T_PlatRaise>, 3);
+        CheckSpecial<lightflash_t>(begin, P_Thinker<T_LightFlash>, 4);
+        CheckSpecial<strobe_t>(begin, P_Thinker<T_StrobeFlash>, 5);
+        CheckSpecial<glow_t>(begin, P_Thinker<T_Glow>, 6);
     }
 }
