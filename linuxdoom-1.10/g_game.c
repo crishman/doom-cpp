@@ -492,8 +492,13 @@ void G_DoLoadLevel (void)
     joyxmove = joyymove = 0; 
     mousex = mousey = 0; 
     sendpause = sendsave = paused = false; 
-    memset (mousebuttons, 0, sizeof(mousebuttons)); 
-    memset (joybuttons, 0, sizeof(joybuttons)); 
+    // Clear the backing arrays, not the pointers into them: sizeof() on
+    // mousebuttons/joybuttons is the pointer's 8 bytes, which happened to fit
+    // while boolean was a 4-byte enum but overruns now that C++ makes it a
+    // 1-byte bool. mousearray[0]/joyarray[0] are the dummies that allow the
+    // [-1] index used for unbound buttons, and are fine to clear too.
+    memset (mousearray, 0, sizeof(mousearray)); 
+    memset (joyarray, 0, sizeof(joyarray)); 
 } 
  
  

@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "dev",
+      "inherits": "base",
+      "displayName": "Debug + ASan/UBSan",
+      "description": "Day-to-day build. Sanitizers find real bugs here immediately. Doom leaks by design at exit; run with ASAN_OPTIONS=detect_leaks=0 to mute LeakSanitizer.",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    },
+    {
+      "name": "rel",
+      "inherits": "base",
+      "displayName": "RelWithDebInfo",
+      "description": "Optimised build with symbols. Use this one to actually play.",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    },
+    {
+      "name": "warn",
+      "inherits": "dev",
+      "displayName": "Debug + all legacy warnings",
+      "description": "Surveys what is left to port. Expect thousands of lines.",
+      "cacheVariables": { "DOOM_LEGACY_WARNINGS": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "rel", "configurePreset": "rel" },
+    { "name": "warn", "configurePreset": "warn" }
+  ]
+}

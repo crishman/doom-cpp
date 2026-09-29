@@ -46,7 +46,7 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <errnos.h>
+#include <errno.h>
 #include <signal.h>
 
 #include "doomstat.h"
@@ -76,6 +76,15 @@ boolean		doShm;
 
 XShmSegmentInfo	X_shminfo;
 int		X_shmeventtype;
+
+// Set when we could not get an 8-bit PseudoColor visual and are running on a
+// TrueColor one instead. Xorg dropped PseudoColor years ago, so this is the
+// normal case on a modern desktop; the PseudoColor path is kept because it is
+// what a Xephyr -screen WxHx8 server still provides.
+boolean		X_truecolor;
+
+// Doom's 8-bit palette expanded to native pixels, rebuilt by I_SetPalette.
+unsigned long	X_pallut[256];
 
 // Fake mouse handling.
 // This cannot work properly w/o DGA.
@@ -163,6 +172,12 @@ int xlatekey(void)
 
 void I_ShutdownGraphics(void)
 {
+  // I_Error() can fire before I_InitGraphics() has run (a missing WAD, say),
+  // and it calls us on the way out. Without this, every such startup error
+  // is reported as a segfault inside Xlib instead of its actual message.
+  if (!X_display)
+    return;
+
   // Detach from X server
   if (!XShmDetach(X_display, &X_shminfo))
 	    I_Error("XShmDetach() failed in I_ShutdownGraphics()");
@@ -349,6 +364,29 @@ void I_UpdateNoBlit (void)
 //
 // I_FinishUpdate
 //
+//
+// Byte-swap a 32-bit pixel. The channel masks in X_pallut fix a pixel's
+// numeric value, but not how its four bytes are laid down in the image; a
+// server whose byte order differs from ours needs the reverse order.
+//
+static unsigned int SwapPixel (unsigned int c)
+{
+    return ((c & 0x000000ff) << 24)
+	|  ((c & 0x0000ff00) << 8)
+	|  ((c & 0x00ff0000) >> 8)
+	|  ((c & 0xff000000) >> 24);
+}
+
+//
+// True when this machine stores the most significant byte first.
+//
+static boolean HostMSBFirst (void)
+{
+    static const unsigned int	one = 1;
+
+    return ((const unsigned char *) &one)[0] == 0;
+}
+
 void I_FinishUpdate (void)
 {
 
@@ -374,7 +412,43 @@ void I_FinishUpdate (void)
     }
 
     // scales the screen size before blitting it
-    if (multiply == 2)
+    if (X_truecolor)
+    {
+	// Expand the paletted frame into native pixels, scaling by `multiply`
+	// with nearest-neighbour replication.
+	//
+	// image->byte_order is the order the *server* wants, which need not be
+	// ours when the display is remote. Fold any swap into a local copy of
+	// the palette so the inner loop stays a plain 32-bit store; 256 entries
+	// per frame is nothing next to the pixels.
+	int		x, y, m, n, i;
+	const byte*	src = screens[0];
+	unsigned int	lut[256];
+	boolean		swap;
+
+	swap = ((image->byte_order == MSBFirst) != HostMSBFirst());
+
+	for (i=0 ; i<256 ; i++)
+	    lut[i] = swap ? SwapPixel ((unsigned int) X_pallut[i])
+			  : (unsigned int) X_pallut[i];
+
+	for (y=0 ; y<SCREENHEIGHT ; y++)
+	{
+	    for (n=0 ; n<multiply ; n++)
+	    {
+		unsigned int*	dst = (unsigned int *)
+		    (image->data + (y*multiply + n) * image->bytes_per_line);
+
+		for (x=0 ; x<SCREENWIDTH ; x++)
+		{
+		    unsigned int c = lut[src[y*SCREENWIDTH + x]];
+		    for (m=0 ; m<multiply ; m++)
+			*dst++ = c;
+		}
+	    }
+	}
+    }
+    else if (multiply == 2)
     {
 	unsigned int *olineptrs[2];
 	unsigned int *ilineptr;
@@ -574,6 +648,26 @@ void UploadNewPalette(Colormap cmap, byte *palette)
 	    XStoreColors(X_display, cmap, colors, 256);
 
 	}
+    else if (X_truecolor)
+	{
+	    // No server-side palette to store into: precompute the native
+	    // pixel for each of the 256 entries instead. Scaling by the mask
+	    // places each component correctly for any contiguous channel
+	    // layout, so this does not assume a particular byte order.
+	    for (i=0 ; i<256 ; i++)
+	    {
+		unsigned long	r, g, b;
+
+		c = gammatable[usegamma][*palette++];  r = c;
+		c = gammatable[usegamma][*palette++];  g = c;
+		c = gammatable[usegamma][*palette++];  b = c;
+
+		X_pallut[i] =
+		      (((r * X_visualinfo.red_mask)   / 255) & X_visualinfo.red_mask)
+		    | (((g * X_visualinfo.green_mask) / 255) & X_visualinfo.green_mask)
+		    | (((b * X_visualinfo.blue_mask)  / 255) & X_visualinfo.blue_mask);
+	    }
+	}
 }
 
 //
@@ -666,7 +760,6 @@ void grabsharedmemory(int size)
       id = shmget((key_t)key, size, IPC_CREAT|0777);
       if (id==-1)
       {
-	extern int errno;
 	fprintf(stderr, "errno=%d\n", errno);
 	I_Error("Could not get any shared memory");
       }
@@ -766,10 +859,21 @@ void I_InitGraphics(void)
 	    I_Error("Could not open display (DISPLAY=[%s])", getenv("DISPLAY"));
     }
 
-    // use the default visual 
+    // Prefer the 8-bit PseudoColor visual the engine was written for, where
+    // the X server does the palette lookup for us. Failing that, take a
+    // TrueColor visual and expand the palette ourselves in I_FinishUpdate.
     X_screen = DefaultScreen(X_display);
-    if (!XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
-	I_Error("xdoom currently only supports 256-color PseudoColor screens");
+    if (XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
+    {
+	X_truecolor = false;
+    }
+    else if (XMatchVisualInfo(X_display, X_screen, 24, TrueColor, &X_visualinfo)
+	     || XMatchVisualInfo(X_display, X_screen, 32, TrueColor, &X_visualinfo))
+    {
+	X_truecolor = true;
+    }
+    else
+	I_Error("xdoom needs an 8-bit PseudoColor or a 24/32-bit TrueColor visual");
     X_visual = X_visualinfo.visual;
 
     // check for the MITSHM extension
@@ -791,8 +895,8 @@ void I_InitGraphics(void)
     fprintf(stderr, "Using MITSHM extension\n");
 
     // create the colormap
-    X_cmap = XCreateColormap(X_display, RootWindow(X_display,
-						   X_screen), X_visual, AllocAll);
+    X_cmap = XCreateColormap(X_display, RootWindow(X_display, X_screen),
+			     X_visual, X_truecolor ? AllocNone : AllocAll);
 
     // setup attributes for main window
     attribmask = CWEventMask | CWColormap | CWBorderPixel;
@@ -811,7 +915,7 @@ void I_InitGraphics(void)
 					x, y,
 					X_width, X_height,
 					0, // borderwidth
-					8, // depth
+					X_visualinfo.depth, // depth
 					InputOutput,
 					X_visual,
 					attribmask,
@@ -858,7 +962,7 @@ void I_InitGraphics(void)
 	// create the image
 	image = XShmCreateImage(	X_display,
 					X_visual,
-					8,
+					X_visualinfo.depth,
 					ZPixmap,
 					0,
 					&X_shminfo,
@@ -897,17 +1001,26 @@ void I_InitGraphics(void)
     {
 	image = XCreateImage(	X_display,
     				X_visual,
-    				8,
+    				X_visualinfo.depth,
     				ZPixmap,
     				0,
-    				(char*)malloc(X_width * X_height),
+    				(char*)malloc(X_width * X_height * 4),
     				X_width, X_height,
-    				8,
-    				X_width );
+    				32,
+    				0 );	// let Xlib compute bytes_per_line
 
     }
 
-    if (multiply == 1)
+    if (X_truecolor)
+    {
+	// The X image holds native pixels now, so Doom cannot draw straight
+	// into it; give it its own paletted buffer to render to.
+	if (image->bits_per_pixel != 32)
+	    I_Error("xdoom needs a 32-bits-per-pixel TrueColor visual, got %d",
+		    image->bits_per_pixel);
+	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
+    }
+    else if (multiply == 1)
 	screens[0] = (unsigned char *) (image->data);
     else
 	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
