@@ -42,6 +42,33 @@
         "DOOM_LEGACY_WARNINGS": "ON",
         "DOOM_WARNINGS_AS_ERRORS": "ON"
       }
+    },
+    {
+      "name": "dev-clang",
+      "inherits": "dev",
+      "displayName": "Debug + ASan/UBSan (clang)",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "rel-clang",
+      "inherits": "rel",
+      "displayName": "RelWithDebInfo (clang)",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "warn-clang",
+      "inherits": "warn",
+      "displayName": "Debug + strict warnings as errors (clang)",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
     }
   ],
   "buildPresets": [
@@ -56,6 +83,18 @@
     {
       "name": "warn",
       "configurePreset": "warn"
+    },
+    {
+      "name": "dev-clang",
+      "configurePreset": "dev-clang"
+    },
+    {
+      "name": "rel-clang",
+      "configurePreset": "rel-clang"
+    },
+    {
+      "name": "warn-clang",
+      "configurePreset": "warn-clang"
     }
   ]
 }
