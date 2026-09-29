@@ -20,7 +20,7 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 
 #include <stdlib.h>
@@ -42,9 +42,6 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 
 #include "doomstat.h"
 
-#ifdef __GNUG__
-#pragma implementation "i_net.h"
-#endif
 #include "i_net.h"
 
 

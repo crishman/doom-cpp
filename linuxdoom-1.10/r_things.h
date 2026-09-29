@@ -24,9 +24,6 @@
 #define __R_THINGS__
 
 
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 #define MAXVISSPRITES  	128
 

@@ -26,9 +26,6 @@
 #include "d_ticcmd.h"
 #include "d_event.h"
 
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 
 // Called by DoomMain.
@@ -76,7 +73,7 @@ ticcmd_t* I_BaseTiccmd (void);
 
 // Called by M_Responder when quit is selected.
 // Clean exit, displays sell blurb.
-void I_Quit (void);
+[[noreturn]] void I_Quit (void);
 
 
 // Allocates from low memory under dos,
@@ -86,7 +83,7 @@ byte* I_AllocLow (int length);
 void I_Tactile (int on, int off, int total);
 
 
-void I_Error (const char*error, ...);
+[[noreturn]] void I_Error (const char*error, ...);
 
 
 #endif

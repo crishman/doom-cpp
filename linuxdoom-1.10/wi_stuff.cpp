@@ -21,7 +21,7 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: wi_stuff.c,v 1.7 1997/02/03 22:45:13 b1 Exp $";
 
 #include <stdio.h>
@@ -131,7 +131,7 @@ typedef struct
 // Animation.
 // There is another anim_t used in p_spec.
 //
-typedef struct
+typedef struct anim_s
 {
     animenum_t	type;
 

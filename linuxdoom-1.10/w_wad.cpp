@@ -22,7 +22,7 @@
 //-----------------------------------------------------------------------------
 
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 
 
@@ -43,9 +43,6 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #include "i_system.h"
 #include "z_zone.h"
 
-#ifdef __GNUG__
-#pragma implementation "w_wad.h"
-#endif
 #include "w_wad.h"
 
 

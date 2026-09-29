@@ -24,7 +24,7 @@
 //-----------------------------------------------------------------------------
 
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 
@@ -287,8 +287,6 @@ void R_DrawFuzzColumn (void)
 { 
     int			count; 
     byte*		dest; 
-    fixed_t		frac;
-    fixed_t		fracstep;	 
 
     // Adjust borders. Low... 
     if (!dc_yl) 
@@ -344,8 +342,6 @@ void R_DrawFuzzColumn (void)
     dest = ylookup[dc_yl] + columnofs[dc_x];
 
     // Looks familiar.
-    fracstep = dc_iscale; 
-    frac = dc_texturemid + (dc_yl-centery)*fracstep; 
 
     // Looks like an attempt at dithering,
     //  using the colormap #6 (of 0-31, a bit
@@ -364,7 +360,6 @@ void R_DrawFuzzColumn (void)
 	
 	dest += SCREENWIDTH;
 
-	frac += fracstep; 
     } while (count--); 
 } 
  
