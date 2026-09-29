@@ -44,6 +44,12 @@ function(doom_target_flags target)
         if(DOOM_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE /WX)
         endif()
+        # p_saveg.cpp tells thinker types apart by comparing function pointers,
+        # so distinct functions must keep distinct addresses. /OPT:ICF, which
+        # Release enables by default, folds functions with identical bodies into
+        # one address and silently breaks that: a door then compares equal to a
+        # ceiling and the savegame is written with the wrong type marker.
+        target_link_options(${target} PRIVATE $<$<CONFIG:Release,RelWithDebInfo,MinSizeRel>:/OPT:NOICF>)
     else()
         # Load-bearing, not tuning: the tree type-puns constantly and its
         # fixed-point maths relies on signed overflow wrapping. MSVC has no

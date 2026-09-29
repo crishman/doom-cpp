@@ -59,6 +59,14 @@ struct thinker_thunk<Fn>
 // P_Thinker<T_MoveFloor> is what gets stored, and the same expression compares
 // equal afterwards, so identifying a thinker by its function still works --
 // which p_saveg.cpp depends on to tell the thinker types apart.
+//
+// That makes distinct thinkers needing distinct addresses a correctness
+// requirement, not a detail. Identical-COMDAT-folding linkers (MSVC's
+// /OPT:ICF, lld's --icf) merge functions with identical bodies into one
+// address and break it silently: a door then compares equal to a ceiling and
+// the savegame records the wrong type. CMakeLists.txt passes /OPT:NOICF for
+// MSVC release builds. savegame_tests covers this -- it fails if folding is
+// ever enabled, so leave its thinker stubs empty and therefore foldable.
 template<auto Fn>
 inline constexpr think_t P_Thinker = &thinker_thunk<Fn>::call;
 

@@ -41,9 +41,16 @@ void T_LightFlash(lightflash_t*) {}
 void T_StrobeFlash(strobe_t*) {}
 void T_Glow(glow_t*) {}
 
-void Require(bool condition)
+// Reports where it failed: a bare message is useless when the only view of the
+// run is a CI log from another platform.
+#define Require(cond) RequireAt((cond), #cond, __LINE__)
+void RequireAt(bool condition, const char* text, int line)
 {
-    if (!condition) { std::fprintf(stderr, "Savegame regression failed\n"); std::exit(1); }
+    if (!condition)
+    {
+        std::fprintf(stderr, "Savegame regression failed at line %d: %s\n", line, text);
+        std::exit(1);
+    }
 }
 byte* Pad(byte* p)
 {
