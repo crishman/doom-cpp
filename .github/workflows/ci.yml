@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# A newer push to the same branch makes the in-flight run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Full build: engine plus tests, with the sanitizers and the strict warnings.
+  # X11 confines this to Linux.
+  linux:
+    name: linux (${{ matrix.cc }}, ${{ matrix.preset }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Report every leg rather than hiding later failures behind the first.
+      fail-fast: false
+      matrix:
+        # warn: Debug, ASan + UBSan, -Wall -Wextra -Wpedantic -Werror.
+        # rel:  RelWithDebInfo, the only preset that exercises the optimiser --
+        #       which matters here, because the tree depends on
+        #       -fno-strict-aliasing and -fwrapv and a violation of either is
+        #       invisible until optimisation is on.
+        preset: [warn, rel]
+        # The two disagree about plenty: everything clang rejected under
+        # -Werror, gcc accepted silently. cc is a real matrix dimension so it
+        # multiplies with preset; include only supplies the matching cxx.
+        cc: [gcc, clang]
+        include:
+          - cc: gcc
+            cxx: g++
+          - cc: clang
+            cxx: clang++
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libx11-dev libxext-dev
+      - run: cmake --preset ${{ matrix.preset }}
+      - run: cmake --build --preset ${{ matrix.preset }}
+      - run: ctest --test-dir build/${{ matrix.preset }} --output-on-failure
+
+  # Tests only, no X11 and no presets: the presets pin Ninja and pass GCC-style
+  # sanitizer flags that MSVC rejects. This is what DOOM_BUILD_GAME=OFF is for.
+  portable:
+    name: portable (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          # MSVC has never been tried on this tree. Surface the result without
+          # blocking merges on it until someone has verified it once.
+          - os: windows-latest
+            experimental: true
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DDOOM_BUILD_GAME=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
