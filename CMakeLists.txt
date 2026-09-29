@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(DOOM_LEGACY_WARNINGS "Show warnings from legacy sources" OFF)
+option(DOOM_WARNINGS_AS_ERRORS "Enable warnings and treat them as errors" OFF)
 
 # Compile the original .c files as C++ while they are migrated incrementally.
 # The DOS drivers in ipx/ and sersrc/ are not part of the Linux executable.
@@ -80,12 +81,15 @@ add_executable(doom ${DOOM_SOURCES})
 target_include_directories(doom PRIVATE linuxdoom-1.10)
 target_compile_definitions(doom PRIVATE NORMALUNIX LINUX)
 
-# Retain the legacy arithmetic/aliasing behavior and permit unported C idioms.
-target_compile_options(doom PRIVATE -fno-strict-aliasing -fwrapv -fpermissive)
-if(DOOM_LEGACY_WARNINGS)
-    target_compile_options(doom PRIVATE -Wall -Wextra)
+# Retain the legacy arithmetic and aliasing behavior.
+target_compile_options(doom PRIVATE -fno-strict-aliasing -fwrapv)
+if(DOOM_LEGACY_WARNINGS OR DOOM_WARNINGS_AS_ERRORS)
+    target_compile_options(doom PRIVATE -Wall -Wextra -Wpedantic)
 else()
     target_compile_options(doom PRIVATE -w)
+endif()
+if(DOOM_WARNINGS_AS_ERRORS)
+    target_compile_options(doom PRIVATE -Werror)
 endif()
 
 find_package(X11 REQUIRED)

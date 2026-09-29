@@ -89,7 +89,7 @@ doomdata_t	reboundstore;
 //
 int NetbufferSize (void)
 {
-    return (int)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); 
+    return offsetof(doomdata_t, cmds) + netbuffer->numtics * sizeof(ticcmd_t);
 }
 
 //
@@ -107,7 +107,7 @@ unsigned NetbufferChecksum (void)
     return 0;			// byte order problems
 #endif
 
-    l = (NetbufferSize () - (int)&(((doomdata_t *)0)->retransmitfrom))/4;
+    l = (NetbufferSize () - static_cast<int>(offsetof(doomdata_t, retransmitfrom)))/4;
     for (i=0 ; i<l ; i++)
 	c += ((unsigned *)&netbuffer->retransmitfrom)[i] * (i+1);
 
@@ -461,7 +461,7 @@ void CheckAbort (void)
 	
     I_StartTic ();
     for ( ; eventtail != eventhead 
-	      ; eventtail = (++eventtail)&(MAXEVENTS-1) ) 
+	      ; eventtail = (eventtail + 1)&(MAXEVENTS-1) )
     { 
 	ev = &events[eventtail]; 
 	if (ev->type == ev_keydown && ev->data1 == KEY_ESCAPE)
@@ -494,7 +494,7 @@ void D_ArbitrateNetStart (void)
 	    {
 		if (netbuffer->player != VERSION)
 		    I_Error ("Different DOOM versions cannot play a net game!");
-		startskill = netbuffer->retransmitfrom & 15;
+		startskill = static_cast<skill_t>(netbuffer->retransmitfrom & 15);
 		deathmatch = (netbuffer->retransmitfrom & 0xc0) >> 6;
 		nomonsters = (netbuffer->retransmitfrom & 0x20) > 0;
 		respawnparm = (netbuffer->retransmitfrom & 0x10) > 0;

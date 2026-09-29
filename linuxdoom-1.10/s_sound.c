@@ -584,7 +584,7 @@ void S_UpdateSounds(void* listener_p)
 		if (c->origin && listener_p != c->origin)
 		{
 		    audible = S_AdjustSoundParams(listener,
-						  c->origin,
+						  static_cast<mobj_t*>(c->origin),
 						  &volume,
 						  &sep,
 						  &pitch);
@@ -755,7 +755,7 @@ S_AdjustSoundParams
   mobj_t*	source,
   int*		vol,
   int*		sep,
-  int*		pitch )
+  [[maybe_unused]] int*		pitch )
 {
     fixed_t	approx_dist;
     fixed_t	adx;

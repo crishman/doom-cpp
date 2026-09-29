@@ -93,7 +93,7 @@ int		numsprites;
 
 spriteframe_t	sprtemp[29];
 int		maxframe;
-char*		spritename;
+const char*		spritename;
 
 
 
@@ -173,7 +173,7 @@ R_InstallSpriteLump
 //  letter/number appended.
 // The rotation character can be 0 to signify no rotations.
 //
-void R_InitSpriteDefs (char* const* namelist, int count)
+void R_InitSpriteDefs (const char* const* namelist, int count)
 { 
     int		i;
     int		l;
@@ -190,7 +190,7 @@ void R_InitSpriteDefs (char* const* namelist, int count)
     if (!numsprites)
 	return;
 		
-    sprites = Z_Malloc(numsprites *sizeof(*sprites), PU_STATIC, NULL);
+    sprites = static_cast<spritedef_t*>(Z_Malloc(numsprites *sizeof(*sprites), PU_STATIC, NULL));
 	
     start = firstspritelump-1;
     end = lastspritelump+1;
@@ -274,7 +274,7 @@ void R_InitSpriteDefs (char* const* namelist, int count)
 	// allocate space for the frames present and copy sprtemp to it
 	sprites[i].numframes = maxframe;
 	sprites[i].spriteframes = 
-	    Z_Malloc (maxframe * sizeof(spriteframe_t), PU_STATIC, NULL);
+	    static_cast<spriteframe_t*>(Z_Malloc (maxframe * sizeof(spriteframe_t), PU_STATIC, NULL));
 	memcpy (sprites[i].spriteframes, sprtemp, maxframe*sizeof(spriteframe_t));
     }
 
@@ -296,7 +296,7 @@ int		newvissprite;
 // R_InitSprites
 // Called at program start.
 //
-void R_InitSprites (char* const* namelist, int count)
+void R_InitSprites (const char* const* namelist, int count)
 {
     int		i;
 	
@@ -396,8 +396,8 @@ void R_DrawMaskedColumn (column_t* column)
 void
 R_DrawVisSprite
 ( vissprite_t*		vis,
-  int			x1,
-  int			x2 )
+  [[maybe_unused]] int			x1,
+  [[maybe_unused]] int			x2 )
 {
     column_t*		column;
     int			texturecolumn;
@@ -405,7 +405,7 @@ R_DrawVisSprite
     patch_t*		patch;
 	
 	
-    patch = W_CacheLumpNum (vis->patch+firstspritelump, PU_CACHE);
+    patch = static_cast<patch_t*>(W_CacheLumpNum (vis->patch+firstspritelump, PU_CACHE));
 
     dc_colormap = vis->colormap;
     
@@ -504,7 +504,7 @@ void R_ProjectSprite (mobj_t* thing)
     
     // decide which patch to use for sprite relative to player
 #ifdef RANGECHECK
-    if ((unsigned)thing->sprite >= numsprites)
+    if (static_cast<unsigned>(thing->sprite) >= static_cast<unsigned>(numsprites))
 	I_Error ("R_ProjectSprite: invalid sprite number %i ",
 		 thing->sprite);
 #endif
@@ -657,7 +657,7 @@ void R_DrawPSprite (pspdef_t* psp)
     
     // decide which patch to use
 #ifdef RANGECHECK
-    if ( (unsigned)psp->state->sprite >= numsprites)
+    if ( static_cast<unsigned>(psp->state->sprite) >= static_cast<unsigned>(numsprites))
 	I_Error ("R_ProjectSprite: invalid sprite number %i ",
 		 psp->state->sprite);
 #endif

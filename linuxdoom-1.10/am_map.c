@@ -194,18 +194,18 @@ mline_t cheat_player_arrow[] = {
 
 #define R (FRACUNIT)
 mline_t triangle_guy[] = {
-    { { -.867*R, -.5*R }, { .867*R, -.5*R } },
-    { { .867*R, -.5*R } , { 0, R } },
-    { { 0, R }, { -.867*R, -.5*R } }
+    { { static_cast<fixed_t>(-.867*R), static_cast<fixed_t>(-.5*R) }, { static_cast<fixed_t>(.867*R), static_cast<fixed_t>(-.5*R) } },
+    { { static_cast<fixed_t>(.867*R), static_cast<fixed_t>(-.5*R) } , { 0, R } },
+    { { 0, R }, { static_cast<fixed_t>(-.867*R), static_cast<fixed_t>(-.5*R) } }
 };
 #undef R
 #define NUMTRIANGLEGUYLINES (sizeof(triangle_guy)/sizeof(mline_t))
 
 #define R (FRACUNIT)
 mline_t thintriangle_guy[] = {
-    { { -.5*R, -.7*R }, { R, 0 } },
-    { { R, 0 }, { -.5*R, .7*R } },
-    { { -.5*R, .7*R }, { -.5*R, -.7*R } }
+    { { static_cast<fixed_t>(-.5*R), static_cast<fixed_t>(-.7*R) }, { R, 0 } },
+    { { R, 0 }, { static_cast<fixed_t>(-.5*R), static_cast<fixed_t>(.7*R) } },
+    { { static_cast<fixed_t>(-.5*R), static_cast<fixed_t>(.7*R) }, { static_cast<fixed_t>(-.5*R), static_cast<fixed_t>(-.7*R) } }
 };
 #undef R
 #define NUMTHINTRIANGLEGUYLINES (sizeof(thintriangle_guy)/sizeof(mline_t))
@@ -458,7 +458,7 @@ void AM_changeWindowLoc(void)
 void AM_initVariables(void)
 {
     int pnum;
-    static event_t st_notify = { ev_keyup, AM_MSGENTERED };
+    static event_t st_notify = { ev_keyup, AM_MSGENTERED, 0, 0 };
 
     automapactive = true;
     fb = screens[0];
@@ -507,7 +507,7 @@ void AM_loadPics(void)
     for (i=0;i<10;i++)
     {
 	sprintf(namebuf, "AMMNUM%d", i);
-	marknums[i] = W_CacheLumpName(namebuf, PU_STATIC);
+	marknums[i] = static_cast<patch_t*>(W_CacheLumpName(namebuf, PU_STATIC));
     }
 
 }
@@ -559,7 +559,7 @@ void AM_LevelInit(void)
 //
 void AM_Stop (void)
 {
-    static event_t st_notify = { 0, ev_keyup, AM_MSGEXITED };
+    static event_t st_notify = { ev_keyup, AM_MSGEXITED, 0, 0 };
 
     AM_unloadPics();
     automapactive = false;
@@ -616,7 +616,6 @@ AM_Responder
 {
 
     int rc;
-    static int cheatstate=0;
     static int bigstate=0;
     static char buffer[20];
 
@@ -695,7 +694,6 @@ AM_Responder
 	    plr->message = AMSTR_MARKSCLEARED;
 	    break;
 	  default:
-	    cheatstate=0;
 	    rc = false;
 	}
 	if (!deathmatch && cht_CheckCheat(&cheat_amap, ev->data1))
@@ -979,15 +977,15 @@ AM_drawFline
 ( fline_t*	fl,
   int		color )
 {
-    register int x;
-    register int y;
-    register int dx;
-    register int dy;
-    register int sx;
-    register int sy;
-    register int ax;
-    register int ay;
-    register int d;
+    int x;
+    int y;
+    int dx;
+    int dy;
+    int sx;
+    int sy;
+    int ax;
+    int ay;
+    int d;
     
     static int fuck = 0;
 
@@ -1284,7 +1282,7 @@ void AM_drawPlayers(void)
 void
 AM_drawThings
 ( int	colors,
-  int 	colorrange)
+  [[maybe_unused]] int 	colorrange)
 {
     int		i;
     mobj_t*	t;

@@ -90,7 +90,7 @@ STlib_initNum
 void
 STlib_drawNum
 ( st_number_t*	n,
-  boolean	refresh )
+  [[maybe_unused]] boolean	refresh )
 {
 
     int		numdigits = n->width;

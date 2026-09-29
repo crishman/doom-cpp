@@ -151,7 +151,7 @@ M_ReadFile
     if (fstat (handle,&fileinfo) == -1)
 	I_Error ("Couldn't read file %s", name);
     length = fileinfo.st_size;
-    buf = Z_Malloc (length, PU_STATIC, NULL);
+    buf = static_cast<byte*>(Z_Malloc (length, PU_STATIC, NULL));
     count = read (handle, buf, length);
     close (handle);
 	
@@ -209,27 +209,33 @@ extern	int	numChannels;
 
 // UNIX hack, to be removed.
 #ifdef SNDSERV
-extern char*	sndserver_filename;
+extern const char*	sndserver_filename;
 extern int	mb_used;
 #endif
 
 #ifdef LINUX
-char*		mousetype;
-char*		mousedev;
+const char*		mousetype;
+const char*		mousedev;
 #endif
 
-extern char*	chat_macros[];
+extern const char*	chat_macros[];
 
 
 
-typedef struct
+struct default_t
 {
-    char*	name;
-    int*	location;
-    int		defaultvalue;
-    int		scantranslate;		// PC scan code hack
-    int		untranslated;		// lousy hack
-} default_t;
+    const char* name;
+    int* location = nullptr;
+    int defaultvalue = 0;
+    const char** string_location = nullptr;
+    const char* defaultstring = nullptr;
+    char* owned_string = nullptr;
+
+    constexpr default_t(const char* n, int* p, int value)
+        : name(n), location(p), defaultvalue(value) {}
+    constexpr default_t(const char* n, const char** p, const char* value)
+        : name(n), string_location(p), defaultstring(value) {}
+};
 
 default_t	defaults[] =
 {
@@ -254,15 +260,15 @@ default_t	defaults[] =
 
 // UNIX hack, to be removed. 
 #ifdef SNDSERV
-    {"sndserver", (int *) &sndserver_filename, (int) "sndserver"},
+    {"sndserver", &sndserver_filename, "sndserver"},
     {"mb_used", &mb_used, 2},
 #endif
     
 #endif
 
 #ifdef LINUX
-    {"mousedev", (int*)&mousedev, (int)"/dev/ttyS0"},
-    {"mousetype", (int*)&mousetype, (int)"microsoft"},
+    {"mousedev", &mousedev, "/dev/ttyS0"},
+    {"mousetype", &mousetype, "microsoft"},
 #endif
 
     {"use_mouse",&usemouse, 1},
@@ -285,16 +291,16 @@ default_t	defaults[] =
 
     {"usegamma",&usegamma, 0},
 
-    {"chatmacro0", (int *) &chat_macros[0], (int) HUSTR_CHATMACRO0 },
-    {"chatmacro1", (int *) &chat_macros[1], (int) HUSTR_CHATMACRO1 },
-    {"chatmacro2", (int *) &chat_macros[2], (int) HUSTR_CHATMACRO2 },
-    {"chatmacro3", (int *) &chat_macros[3], (int) HUSTR_CHATMACRO3 },
-    {"chatmacro4", (int *) &chat_macros[4], (int) HUSTR_CHATMACRO4 },
-    {"chatmacro5", (int *) &chat_macros[5], (int) HUSTR_CHATMACRO5 },
-    {"chatmacro6", (int *) &chat_macros[6], (int) HUSTR_CHATMACRO6 },
-    {"chatmacro7", (int *) &chat_macros[7], (int) HUSTR_CHATMACRO7 },
-    {"chatmacro8", (int *) &chat_macros[8], (int) HUSTR_CHATMACRO8 },
-    {"chatmacro9", (int *) &chat_macros[9], (int) HUSTR_CHATMACRO9 }
+    {"chatmacro0", &chat_macros[0], HUSTR_CHATMACRO0 },
+    {"chatmacro1", &chat_macros[1], HUSTR_CHATMACRO1 },
+    {"chatmacro2", &chat_macros[2], HUSTR_CHATMACRO2 },
+    {"chatmacro3", &chat_macros[3], HUSTR_CHATMACRO3 },
+    {"chatmacro4", &chat_macros[4], HUSTR_CHATMACRO4 },
+    {"chatmacro5", &chat_macros[5], HUSTR_CHATMACRO5 },
+    {"chatmacro6", &chat_macros[6], HUSTR_CHATMACRO6 },
+    {"chatmacro7", &chat_macros[7], HUSTR_CHATMACRO7 },
+    {"chatmacro8", &chat_macros[8], HUSTR_CHATMACRO8 },
+    {"chatmacro9", &chat_macros[9], HUSTR_CHATMACRO9 }
 
 };
 
@@ -317,14 +323,13 @@ void M_SaveDefaults (void)
 		
     for (i=0 ; i<numdefaults ; i++)
     {
-	if (defaults[i].defaultvalue > -0xfff
-	    && defaults[i].defaultvalue < 0xfff)
+	if (defaults[i].location)
 	{
 	    v = *defaults[i].location;
 	    fprintf (f,"%s\t\t%i\n",defaults[i].name,v);
 	} else {
 	    fprintf (f,"%s\t\t\"%s\"\n",defaults[i].name,
-		     * (char **) (defaults[i].location));
+		     *defaults[i].string_location);
 	}
     }
 	
@@ -346,12 +351,20 @@ void M_LoadDefaults (void)
     char	strparm[100];
     char*	newstring;
     int		parm;
-    boolean	isstring;
     
     // set everything to base values
     numdefaults = sizeof(defaults)/sizeof(defaults[0]);
     for (i=0 ; i<numdefaults ; i++)
-	*defaults[i].location = defaults[i].defaultvalue;
+    {
+        if (defaults[i].location)
+            *defaults[i].location = defaults[i].defaultvalue;
+        else
+        {
+            free(defaults[i].owned_string);
+            defaults[i].owned_string = nullptr;
+            *defaults[i].string_location = defaults[i].defaultstring;
+        }
+    }
     
     // check for a custom default file
     i = M_CheckParm ("-config");
@@ -367,36 +380,30 @@ void M_LoadDefaults (void)
     f = fopen (defaultfile, "r");
     if (f)
     {
-	while (!feof(f))
-	{
-	    isstring = false;
-	    if (fscanf (f, "%79s %[^\n]\n", def, strparm) == 2)
-	    {
-		if (strparm[0] == '"')
-		{
-		    // get a string default
-		    isstring = true;
-		    len = strlen(strparm);
-		    newstring = (char *) malloc(len);
-		    strparm[len-1] = 0;
-		    strcpy(newstring, strparm+1);
-		}
-		else if (strparm[0] == '0' && strparm[1] == 'x')
-		    sscanf(strparm+2, "%x", &parm);
-		else
-		    sscanf(strparm, "%i", &parm);
-		for (i=0 ; i<numdefaults ; i++)
-		    if (!strcmp(def, defaults[i].name))
-		    {
-			if (!isstring)
-			    *defaults[i].location = parm;
-			else
-			    *defaults[i].location =
-				(int) newstring;
-			break;
-		    }
-	    }
-	}
+        while (fscanf(f, "%79s %99[^\n]\n", def, strparm) == 2)
+        {
+            for (i=0; i<numdefaults; i++)
+            {
+                if (strcmp(def, defaults[i].name))
+                    continue;
+                len = strlen(strparm);
+                if (defaults[i].string_location && len >= 2
+                    && strparm[0] == '"' && strparm[len-1] == '"')
+                {
+                    newstring = static_cast<char*>(malloc(len));
+                    if (!newstring)
+                        I_Error("M_LoadDefaults: out of memory");
+                    memcpy(newstring, strparm + 1, len - 2);
+                    newstring[len - 2] = 0;
+                    free(defaults[i].owned_string);
+                    defaults[i].owned_string = newstring;
+                    *defaults[i].string_location = newstring;
+                }
+                else if (defaults[i].location && sscanf(strparm, "%i", &parm) == 1)
+                    *defaults[i].location = parm;
+                break;
+            }
+        }
 		
 	fclose (f);
     }
@@ -451,7 +458,7 @@ WritePCXfile
     pcx_t*	pcx;
     byte*	pack;
 	
-    pcx = Z_Malloc (width*height*2+1000, PU_STATIC, NULL);
+    pcx = static_cast<pcx_t*>(Z_Malloc (width*height*2+1000, PU_STATIC, NULL));
 
     pcx->manufacturer = 0x0a;		// PCX id
     pcx->version = 5;			// 256 color
@@ -526,7 +533,7 @@ void M_ScreenShot (void)
     // save the pcx file
     WritePCXfile (lbmname, linear,
 		  SCREENWIDTH, SCREENHEIGHT,
-		  W_CacheLumpName ("PLAYPAL",PU_CACHE));
+		  static_cast<byte*>(W_CacheLumpName ("PLAYPAL",PU_CACHE)));
 	
     players[consoleplayer].message = "screen shot";
 }

@@ -281,7 +281,7 @@ EV_DoDoor
 	
 	// new door thinker
 	rtn = 1;
-	door = Z_Malloc (sizeof(*door), PU_LEVSPEC, 0);
+	door = static_cast<vldoor_t*>(Z_Malloc (sizeof(*door), PU_LEVSPEC, 0));
 	P_AddThinker (&door->thinker);
 	sec->specialdata = door;
 
@@ -356,7 +356,6 @@ EV_VerticalDoor
   mobj_t*	thing )
 {
     player_t*	player;
-    int		secnum;
     sector_t*	sec;
     vldoor_t*	door;
     int		side;
@@ -411,11 +410,10 @@ EV_VerticalDoor
 	
     // if the sector has an active thinker, use it
     sec = sides[ line->sidenum[side^1]] .sector;
-    secnum = sec-sectors;
 
     if (sec->specialdata)
     {
-	door = sec->specialdata;
+	door = static_cast<vldoor_t*>(sec->specialdata);
 	switch(line->special)
 	{
 	  case	1: // ONLY FOR "RAISE" DOORS, NOT "OPEN"s
@@ -456,7 +454,7 @@ EV_VerticalDoor
 	
     
     // new door thinker
-    door = Z_Malloc (sizeof(*door), PU_LEVSPEC, 0);
+    door = static_cast<vldoor_t*>(Z_Malloc (sizeof(*door), PU_LEVSPEC, 0));
     P_AddThinker (&door->thinker);
     sec->specialdata = door;
     door->thinker.function.acp1 = (actionf_p1) T_VerticalDoor;
@@ -506,7 +504,7 @@ void P_SpawnDoorCloseIn30 (sector_t* sec)
 {
     vldoor_t*	door;
 	
-    door = Z_Malloc ( sizeof(*door), PU_LEVSPEC, 0);
+    door = static_cast<vldoor_t*>(Z_Malloc ( sizeof(*door), PU_LEVSPEC, 0));
 
     P_AddThinker (&door->thinker);
 
@@ -527,11 +525,11 @@ void P_SpawnDoorCloseIn30 (sector_t* sec)
 void
 P_SpawnDoorRaiseIn5Mins
 ( sector_t*	sec,
-  int		secnum )
+  [[maybe_unused]] int		secnum )
 {
     vldoor_t*	door;
 	
-    door = Z_Malloc ( sizeof(*door), PU_LEVSPEC, 0);
+    door = static_cast<vldoor_t*>(Z_Malloc ( sizeof(*door), PU_LEVSPEC, 0));
     
     P_AddThinker (&door->thinker);
 
@@ -729,7 +727,7 @@ EV_SlidingDoor
 	if (!thing->player)
 	    return;
 			
-	door = sec->specialdata;
+	door = static_cast<vldoor_t*>(sec->specialdata);
 	if (door->type == sdt_openAndClose)
 	{
 	    if (door->status == sd_waiting)

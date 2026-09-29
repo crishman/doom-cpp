@@ -152,7 +152,7 @@ int 		eventtail;
 void D_PostEvent (event_t* ev)
 {
     events[eventhead] = *ev;
-    eventhead = (++eventhead)&(MAXEVENTS-1);
+    eventhead = (eventhead + 1)&(MAXEVENTS-1);
 }
 
 
@@ -169,7 +169,7 @@ void D_ProcessEvents (void)
 	 && (W_CheckNumForName("map01")<0) )
       return;
 	
-    for ( ; eventtail != eventhead ; eventtail = (++eventtail)&(MAXEVENTS-1) )
+    for ( ; eventtail != eventhead ; eventtail = (eventtail + 1)&(MAXEVENTS-1) )
     {
 	ev = &events[eventtail];
 	if (M_Responder (ev))
@@ -236,6 +236,8 @@ void D_Display (void)
     // do buffered drawing
     switch (gamestate)
     {
+      case GS_INVALID:
+        break;
       case GS_LEVEL:
 	if (!gametic)
 	    break;
@@ -274,7 +276,7 @@ void D_Display (void)
     
     // clean up border stuff
     if (gamestate != oldgamestate && gamestate != GS_LEVEL)
-	I_SetPalette (W_CacheLumpName ("PLAYPAL",PU_CACHE));
+	I_SetPalette (static_cast<byte*>(W_CacheLumpName ("PLAYPAL",PU_CACHE)));
 
     // see if the border needs to be initially drawn
     if (gamestate == GS_LEVEL && oldgamestate != GS_LEVEL)
@@ -309,7 +311,7 @@ void D_Display (void)
 	else
 	    y = viewwindowy+4;
 	V_DrawPatchDirect(viewwindowx+(scaledviewwidth-68)/2,
-			  y,0,W_CacheLumpName ("M_PAUSE", PU_CACHE));
+			  y,0,static_cast<patch_t*>(W_CacheLumpName ("M_PAUSE", PU_CACHE)));
     }
 
 
@@ -415,7 +417,7 @@ void D_DoomLoop (void)
 //
 int             demosequence;
 int             pagetic;
-char                    *pagename;
+const char*pagename;
 
 
 //
@@ -435,7 +437,7 @@ void D_PageTicker (void)
 //
 void D_PageDrawer (void)
 {
-    V_DrawPatch (0,0, 0, W_CacheLumpName(pagename, PU_CACHE));
+    V_DrawPatch (0,0, 0, static_cast<patch_t*>(W_CacheLumpName(pagename, PU_CACHE)));
 }
 
 
@@ -550,7 +552,7 @@ void D_AddFile (const char *file)
     for (numwadfiles = 0 ; wadfiles[numwadfiles] ; numwadfiles++)
 	;
 
-    newfile = malloc (strlen(file)+1);
+    newfile = static_cast<char*>(malloc (strlen(file)+1));
     strcpy (newfile, file);
 	
     wadfiles[numwadfiles] = newfile;
@@ -576,7 +578,7 @@ void IdentifyVersion (void)
 
 #ifdef NORMALUNIX
     char *home;
-    char *doomwaddir;
+    const char *doomwaddir;
     doomwaddir = getenv("DOOMWADDIR");
     if (!doomwaddir)
 	doomwaddir = ".";
@@ -732,7 +734,7 @@ void FindResponseFile (void)
 	    fseek (handle,0,SEEK_END);
 	    size = ftell(handle);
 	    fseek (handle,0,SEEK_SET);
-	    file = malloc (size);
+	    file = static_cast<char*>(malloc (size));
 	    fread (file,size,1,handle);
 	    fclose (handle);
 			
@@ -741,7 +743,7 @@ void FindResponseFile (void)
 		moreargs[index++] = myargv[k];
 			
 	    firstargv = myargv[0];
-	    myargv = malloc(sizeof(char *)*MAXARGVS);
+	    myargv = static_cast<char**>(malloc(sizeof(char *)*MAXARGVS));
 	    memset(myargv,0,sizeof(char *)*MAXARGVS);
 	    myargv[0] = firstargv;
 			
@@ -901,7 +903,7 @@ void D_DoomMain (void)
 	  case shareware:
 	  case retail:
 	  case registered:
-	    sprintf (file,"~"DEVMAPS"E%cM%c.wad",
+	    sprintf (file,"~" DEVMAPS"E%cM%c.wad",
 		     myargv[p+1][0], myargv[p+2][0]);
 	    printf("Warping to Episode %s, Map %s.\n",
 		   myargv[p+1],myargv[p+2]);
@@ -911,9 +913,9 @@ void D_DoomMain (void)
 	  default:
 	    p = atoi (myargv[p+1]);
 	    if (p<10)
-	      sprintf (file,"~"DEVMAPS"cdata/map0%i.wad", p);
+	      sprintf (file,"~" DEVMAPS"cdata/map0%i.wad", p);
 	    else
-	      sprintf (file,"~"DEVMAPS"cdata/map%i.wad", p);
+	      sprintf (file,"~" DEVMAPS"cdata/map%i.wad", p);
 	    break;
 	}
 	D_AddFile (file);
@@ -951,7 +953,7 @@ void D_DoomMain (void)
     p = M_CheckParm ("-skill");
     if (p && p < myargc-1)
     {
-	startskill = myargv[p+1][0]-'1';
+	startskill = static_cast<skill_t>(myargv[p+1][0]-'1');
 	autostart = true;
     }
 
@@ -1010,7 +1012,7 @@ void D_DoomMain (void)
     {
 	// These are the lumps that will be checked in IWAD,
 	// if any one is not present, execution will be aborted.
-	char name[23][8]=
+	char name[23][9]=
 	{
 	    "e2m1","e2m2","e2m3","e2m4","e2m5","e2m6","e2m7","e2m8","e2m9",
 	    "e3m1","e3m3","e3m3","e3m4","e3m5","e3m6","e3m7","e3m8","e3m9",
@@ -1103,7 +1105,7 @@ void D_DoomMain (void)
 	// for statistics driver
 	extern  void*	statcopy;                            
 
-	statcopy = (void*)atoi(myargv[p+1]);
+	statcopy = reinterpret_cast<void*>(strtoull(myargv[p+1], nullptr, 0));
 	printf ("External statistics registered.\n");
     }
     
@@ -1135,7 +1137,7 @@ void D_DoomMain (void)
     if (p && p < myargc-1)
     {
 	if (M_CheckParm("-cdrom"))
-	    sprintf(file, "c:\\doomdata\\"SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
+	    sprintf(file, "c:\\doomdata\\" SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
 	else
 	    sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
 	G_LoadGame (file);

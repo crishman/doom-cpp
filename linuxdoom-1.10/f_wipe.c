@@ -73,7 +73,7 @@ int
 wipe_initColorXForm
 ( int	width,
   int	height,
-  int	ticks )
+  [[maybe_unused]] int	ticks )
 {
     memcpy(wipe_scr, wipe_scr_start, width*height);
     return 0;
@@ -127,9 +127,9 @@ wipe_doColorXForm
 
 int
 wipe_exitColorXForm
-( int	width,
-  int	height,
-  int	ticks )
+( [[maybe_unused]] int	width,
+  [[maybe_unused]] int	height,
+  [[maybe_unused]] int	ticks )
 {
     return 0;
 }
@@ -141,7 +141,7 @@ int
 wipe_initMelt
 ( int	width,
   int	height,
-  int	ticks )
+  [[maybe_unused]] int	ticks )
 {
     int i, r;
     
@@ -225,9 +225,9 @@ wipe_doMelt
 
 int
 wipe_exitMelt
-( int	width,
-  int	height,
-  int	ticks )
+( [[maybe_unused]] int	width,
+  [[maybe_unused]] int	height,
+  [[maybe_unused]] int	ticks )
 {
     Z_Free(y);
     return 0;
@@ -235,10 +235,10 @@ wipe_exitMelt
 
 int
 wipe_StartScreen
-( int	x,
-  int	y,
-  int	width,
-  int	height )
+( [[maybe_unused]] int	x,
+  [[maybe_unused]] int	y,
+  [[maybe_unused]] int	width,
+  [[maybe_unused]] int	height )
 {
     wipe_scr_start = screens[2];
     I_ReadScreen(wipe_scr_start);
@@ -261,8 +261,8 @@ wipe_EndScreen
 int
 wipe_ScreenWipe
 ( int	wipeno,
-  int	x,
-  int	y,
+  [[maybe_unused]] int	x,
+  [[maybe_unused]] int	y,
   int	width,
   int	height,
   int	ticks )

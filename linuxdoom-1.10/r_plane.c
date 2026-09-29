@@ -132,7 +132,7 @@ R_MapPlane
     if (x2 < x1
 	|| x1<0
 	|| x2>=viewwidth
-	|| (unsigned)y>viewheight)
+	|| (y < 0 || y >= viewheight))
     {
 	I_Error ("R_MapPlane: %i, %i at %i",x1,x2,y);
     }
@@ -419,9 +419,9 @@ void R_DrawPlanes (void)
 	}
 	
 	// regular flat
-	ds_source = W_CacheLumpNum(firstflat +
+	ds_source = static_cast<byte*>(W_CacheLumpNum(firstflat +
 				   flattranslation[pl->picnum],
-				   PU_STATIC);
+				   PU_STATIC));
 	
 	planeheight = abs(pl->height-viewz);
 	light = (pl->lightlevel >> LIGHTSEGSHIFT)+extralight;

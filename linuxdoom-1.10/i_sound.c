@@ -63,7 +63,7 @@ rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
 #ifdef SNDSERV
 // Separate sound server process.
 FILE*	sndserver=0;
-char*	sndserver_filename = "./sndserver ";
+const char*	sndserver_filename = "./sndserver ";
 #elif SNDINTR
 
 // Update all 30 millisecs, approx. 30fps synchronized.
@@ -473,7 +473,7 @@ I_StartSound
   int		vol,
   int		sep,
   int		pitch,
-  int		priority )
+  [[maybe_unused]] int		priority )
 {
 
   // UNUSED
@@ -502,7 +502,7 @@ I_StartSound
 
 
 
-void I_StopSound (int handle)
+void I_StopSound ([[maybe_unused]] int handle)
 {
   // You need the handle returned by StartSound.
   // Would be looping all channels,
@@ -546,9 +546,9 @@ void I_UpdateSound( void )
   
   // Mix current sound data.
   // Data, from raw sound, for right and left.
-  register unsigned int	sample;
-  register int		dl;
-  register int		dr;
+  unsigned int	sample;
+  int		dl;
+  int		dr;
   
   // Pointers in global mixbuffer, left, right, end.
   signed short*		leftout;
@@ -673,7 +673,7 @@ I_SubmitSound(void)
 
 void
 I_UpdateSoundParams
-( int	handle,
+( [[maybe_unused]] int	handle,
   int	vol,
   int	sep,
   int	pitch)
@@ -838,26 +838,26 @@ void I_ShutdownMusic(void)	{ }
 static int	looping=0;
 static int	musicdies=-1;
 
-void I_PlaySong(int handle, int looping)
+void I_PlaySong([[maybe_unused]] int handle, int looping)
 {
   // UNUSED.
   handle = looping = 0;
   musicdies = gametic + TICRATE*30;
 }
 
-void I_PauseSong (int handle)
+void I_PauseSong ([[maybe_unused]] int handle)
 {
   // UNUSED.
   handle = 0;
 }
 
-void I_ResumeSong (int handle)
+void I_ResumeSong ([[maybe_unused]] int handle)
 {
   // UNUSED.
   handle = 0;
 }
 
-void I_StopSong(int handle)
+void I_StopSong([[maybe_unused]] int handle)
 {
   // UNUSED.
   handle = 0;
@@ -866,13 +866,13 @@ void I_StopSong(int handle)
   musicdies = 0;
 }
 
-void I_UnRegisterSong(int handle)
+void I_UnRegisterSong([[maybe_unused]] int handle)
 {
   // UNUSED.
   handle = 0;
 }
 
-int I_RegisterSong(void* data)
+int I_RegisterSong([[maybe_unused]] void* data)
 {
   // UNUSED.
   data = NULL;
@@ -881,7 +881,7 @@ int I_RegisterSong(void* data)
 }
 
 // Is the song playing?
-int I_QrySongPlaying(int handle)
+int I_QrySongPlaying([[maybe_unused]] int handle)
 {
   // UNUSED.
   handle = 0;
@@ -914,7 +914,7 @@ static int /*__itimer_which*/  itimer = ITIMER_REAL;
 static int sig = SIGALRM;
 
 // Interrupt handler.
-void I_HandleSoundTimer( int ignore )
+void I_HandleSoundTimer( [[maybe_unused]] int ignore )
 {
   // Debug.
   //fprintf( stderr, "%c", '+' ); fflush( stderr );

@@ -145,7 +145,6 @@ void HUlib_eraseTextLine(hu_textline_t* l)
     int			lh;
     int			y;
     int			yoffset;
-    static boolean	lastautomapactive = true;
 
     // Only erases when NOT in automap and the screen is reduced,
     // and the text must either need updating or refreshing
@@ -168,7 +167,6 @@ void HUlib_eraseTextLine(hu_textline_t* l)
 	}
     }
 
-    lastautomapactive = automapactive;
     if (l->needsupdate) l->needsupdate--;
 
 }
@@ -216,8 +214,8 @@ void HUlib_addLineToSText(hu_stext_t* s)
 void
 HUlib_addMessageToSText
 ( hu_stext_t*	s,
-  char*		prefix,
-  char*		msg )
+  const char*		prefix,
+  const char*		msg )
 {
     HUlib_addLineToSText(s);
     if (prefix)
@@ -305,7 +303,7 @@ void HUlib_resetIText(hu_itext_t* it)
 void
 HUlib_addPrefixToIText
 ( hu_itext_t*	it,
-  char*		str )
+  const char*		str )
 {
     while (*str)
 	HUlib_addCharToTextLine(&it->l, *(str++));

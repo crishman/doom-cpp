@@ -113,7 +113,7 @@ int             starttime;          	// for comparative timing purposes
  
 boolean         viewactive; 
  
-boolean         deathmatch;           	// only if started as net death 
+int             deathmatch;           	// only if started as net death
 boolean         netgame;                // only true if packets are broadcast 
 boolean         playeringame[MAXPLAYERS]; 
 player_t        players[MAXPLAYERS]; 
@@ -221,7 +221,7 @@ int G_CmdChecksum (ticcmd_t* cmd)
     int		i;
     int		sum = 0; 
 	 
-    for (i=0 ; i< sizeof(*cmd)/4 - 1 ; i++) 
+    for (i=0 ; i < static_cast<int>(sizeof(*cmd)/4) - 1 ; i++)
 	sum += ((int *)cmd)[i]; 
 		 
     return sum; 
@@ -456,8 +456,8 @@ void G_DoLoadLevel (void)
     // DOOM determines the sky texture to be used
     // depending on the current episode, and the game version.
     if ( (gamemode == commercial)
-	 || ( gamemode == pack_tnt )
-	 || ( gamemode == pack_plut ) )
+	 || ( gamemission == pack_tnt )
+	 || ( gamemission == pack_plut ) )
     {
 	skytexture = R_TextureNumForName ("SKY3");
 	if (gamemap < 12)
@@ -725,7 +725,9 @@ void G_Ticker (void)
     
     // do main actions
     switch (gamestate) 
-    { 
+    {
+      case GS_INVALID:
+        break;
       case GS_LEVEL: 
 	P_Ticker (); 
 	ST_Ticker (); 
@@ -760,10 +762,8 @@ void G_Ticker (void)
 //
 void G_InitPlayer (int player) 
 { 
-    player_t*	p; 
  
     // set up the saved info         
-    p = &players[player]; 
 	 
     // clear everything else to defaults 
     G_PlayerReborn (player); 
@@ -997,7 +997,7 @@ int cpars[32] =
 // G_DoCompleted 
 //
 boolean		secretexit; 
-extern char*	pagename; 
+extern const char*	pagename;
  
 void G_ExitLevel (void) 
 { 
@@ -1159,6 +1159,7 @@ void G_WorldDone (void)
 	  case 31:
 	    if (!secretexit)
 		break;
+            [[fallthrough]];
 	  case 6:
 	  case 11:
 	  case 20:
@@ -1200,24 +1201,23 @@ void G_LoadGame (char* name)
 
 void G_DoLoadGame (void) 
 { 
-    int		length; 
     int		i; 
     int		a,b,c; 
     char	vcheck[VERSIONSIZE]; 
 	 
     gameaction = ga_nothing; 
 	 
-    length = M_ReadFile (savename, &savebuffer); 
+    M_ReadFile (savename, &savebuffer);
     save_p = savebuffer + SAVESTRINGSIZE;
     
     // skip the description field 
     memset (vcheck,0,sizeof(vcheck)); 
     sprintf (vcheck,"version %i",VERSION); 
-    if (strcmp (save_p, vcheck)) 
+    if (strcmp (reinterpret_cast<const char*>(save_p), vcheck))
 	return;				// bad version 
     save_p += VERSIONSIZE; 
 			 
-    gameskill = *save_p++; 
+    gameskill = static_cast<skill_t>(*save_p++);
     gameepisode = *save_p++; 
     gamemap = *save_p++; 
     for (i=0 ; i<MAXPLAYERS ; i++) 
@@ -1268,15 +1268,15 @@ G_SaveGame
 } 
  
 void G_DoSaveGame (void) 
-{ 
+{
+    int length;
     char	name[100]; 
     char	name2[VERSIONSIZE]; 
     char*	description; 
-    int		length; 
     int		i; 
 	
     if (M_CheckParm("-cdrom"))
-	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",savegameslot);
+	sprintf(name,"c:\\doomdata\\" SAVEGAMENAME"%d.dsg",savegameslot);
     else
 	sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot); 
     description = savedescription; 
@@ -1539,7 +1539,7 @@ void G_RecordDemo (char* name)
     i = M_CheckParm ("-maxdemo");
     if (i && i<myargc-1)
 	maxsize = atoi(myargv[i+1])*1024;
-    demobuffer = Z_Malloc (maxsize,PU_STATIC,NULL); 
+    demobuffer = static_cast<byte*>(Z_Malloc (maxsize,PU_STATIC,NULL));
     demoend = demobuffer + maxsize;
 	
     demorecording = true; 
@@ -1571,9 +1571,9 @@ void G_BeginRecording (void)
 // G_PlayDemo 
 //
 
-char*	defdemoname; 
+const char*	defdemoname;
  
-void G_DeferedPlayDemo (char* name) 
+void G_DeferedPlayDemo (const char* name)
 { 
     defdemoname = name; 
     gameaction = ga_playdemo; 
@@ -1585,7 +1585,7 @@ void G_DoPlayDemo (void)
     int             i, episode, map; 
 	 
     gameaction = ga_nothing; 
-    demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
+    demobuffer = demo_p = static_cast<byte*>(W_CacheLumpName (defdemoname, PU_STATIC));
     if ( *demo_p++ != VERSION)
     {
       fprintf( stderr, "Demo is from a different game version!\n");
@@ -1593,7 +1593,7 @@ void G_DoPlayDemo (void)
       return;
     }
     
-    skill = *demo_p++; 
+    skill = static_cast<skill_t>(*demo_p++);
     episode = *demo_p++; 
     map = *demo_p++; 
     deathmatch = *demo_p++;

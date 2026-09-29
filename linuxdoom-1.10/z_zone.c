@@ -28,6 +28,7 @@ rcsid[] = "$Id: z_zone.c,v 1.4 1997/02/03 16:47:58 b1 Exp $";
 #include <climits>
 #include "i_system.h"
 #include "doomdef.h"
+#include <cstdint>
 
 
 //
@@ -87,7 +88,7 @@ void Z_ClearZone (memzone_t* zone)
 	zone->blocklist.prev =
 	block = (memblock_t *)( (byte *)zone + sizeof(memzone_t) );
     
-    zone->blocklist.user = (void *)zone;
+    zone->blocklist.user = reinterpret_cast<void**>(zone);
     zone->blocklist.tag = PU_STATIC;
     zone->rover = block;
 	
@@ -117,7 +118,7 @@ void Z_Init (void)
 	mainzone->blocklist.prev =
 	block = (memblock_t *)( (byte *)mainzone + sizeof(memzone_t) );
 
-    mainzone->blocklist.user = (void *)mainzone;
+    mainzone->blocklist.user = reinterpret_cast<void**>(mainzone);
     mainzone->blocklist.tag = PU_STATIC;
     mainzone->rover = block;
 	
@@ -284,7 +285,7 @@ Z_Malloc
     if (user)
     {
 	// mark as an in use block
-	base->user = user;			
+	base->user = static_cast<void**>(user);
 	*(void **)user = (void *) ((byte *)base + sizeof(memblock_t));
     }
     else
@@ -293,7 +294,7 @@ Z_Malloc
 	    I_Error ("Z_Malloc: an owner is required for purgable blocks");
 
 	// mark as in use, but unowned	
-	base->user = (void *)2;		
+	base->user = reinterpret_cast<void**>(2);
     }
     base->tag = tag;
 
@@ -348,7 +349,7 @@ Z_DumpHeap
     memblock_t*	block;
 	
     printf ("zone size: %i  location: %p\n",
-	    mainzone->size,mainzone);
+	    mainzone->size,static_cast<void*>(mainzone));
     
     printf ("tag range: %i to %i\n",
 	    lowtag, hightag);
@@ -357,7 +358,7 @@ Z_DumpHeap
     {
 	if (block->tag >= lowtag && block->tag <= hightag)
 	    printf ("block:%p    size:%7i    user:%p    tag:%3i\n",
-		    block, block->size, block->user, block->tag);
+		    static_cast<void*>(block), block->size, static_cast<void*>(block->user), block->tag);
 		
 	if (block->next == &mainzone->blocklist)
 	{
@@ -384,12 +385,12 @@ void Z_FileDumpHeap (FILE* f)
 {
     memblock_t*	block;
 	
-    fprintf (f,"zone size: %i  location: %p\n",mainzone->size,mainzone);
+    fprintf (f,"zone size: %i  location: %p\n",mainzone->size,static_cast<void*>(mainzone));
 	
     for (block = mainzone->blocklist.next ; ; block = block->next)
     {
 	fprintf (f,"block:%p    size:%7i    user:%p    tag:%3i\n",
-		 block, block->size, block->user, block->tag);
+		 static_cast<void*>(block), block->size, static_cast<void*>(block->user), block->tag);
 		
 	if (block->next == &mainzone->blocklist)
 	{
@@ -454,7 +455,7 @@ Z_ChangeTag2
     if (block->id != ZONEID)
 	I_Error ("Z_ChangeTag: freed a pointer without ZONEID");
 
-    if (tag >= PU_PURGELEVEL && (unsigned)block->user < 0x100)
+    if (tag >= PU_PURGELEVEL && reinterpret_cast<std::uintptr_t>(block->user) < 0x100)
 	I_Error ("Z_ChangeTag: an owner is required for purgable blocks");
 
     block->tag = tag;
