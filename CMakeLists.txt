@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Without this, CMake puts a default warning level in CMAKE_CXX_FLAGS for MSVC
+# and every target that sets its own emits D9025 "overriding '/W1' with '/w'".
+# NEW leaves the choice to us, which is what doom_target_flags already makes.
+if(POLICY CMP0092)
+    cmake_policy(SET CMP0092 NEW)
+endif()
+
 project(doom-cpp DESCRIPTION "Linux Doom 1.10, ported to C++" LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
