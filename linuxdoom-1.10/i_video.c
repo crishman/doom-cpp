@@ -364,6 +364,29 @@ void I_UpdateNoBlit (void)
 //
 // I_FinishUpdate
 //
+//
+// Byte-swap a 32-bit pixel. The channel masks in X_pallut fix a pixel's
+// numeric value, but not how its four bytes are laid down in the image; a
+// server whose byte order differs from ours needs the reverse order.
+//
+static unsigned int SwapPixel (unsigned int c)
+{
+    return ((c & 0x000000ff) << 24)
+	|  ((c & 0x0000ff00) << 8)
+	|  ((c & 0x00ff0000) >> 8)
+	|  ((c & 0xff000000) >> 24);
+}
+
+//
+// True when this machine stores the most significant byte first.
+//
+static boolean HostMSBFirst (void)
+{
+    static const unsigned int	one = 1;
+
+    return ((const unsigned char *) &one)[0] == 0;
+}
+
 void I_FinishUpdate (void)
 {
 
@@ -393,8 +416,21 @@ void I_FinishUpdate (void)
     {
 	// Expand the paletted frame into native pixels, scaling by `multiply`
 	// with nearest-neighbour replication.
-	int		x, y, m, n;
+	//
+	// image->byte_order is the order the *server* wants, which need not be
+	// ours when the display is remote. Fold any swap into a local copy of
+	// the palette so the inner loop stays a plain 32-bit store; 256 entries
+	// per frame is nothing next to the pixels.
+	int		x, y, m, n, i;
 	const byte*	src = screens[0];
+	unsigned int	lut[256];
+	boolean		swap;
+
+	swap = ((image->byte_order == MSBFirst) != HostMSBFirst());
+
+	for (i=0 ; i<256 ; i++)
+	    lut[i] = swap ? SwapPixel ((unsigned int) X_pallut[i])
+			  : (unsigned int) X_pallut[i];
 
 	for (y=0 ; y<SCREENHEIGHT ; y++)
 	{
@@ -405,7 +441,7 @@ void I_FinishUpdate (void)
 
 		for (x=0 ; x<SCREENWIDTH ; x++)
 		{
-		    unsigned int c = (unsigned int) X_pallut[src[y*SCREENWIDTH + x]];
+		    unsigned int c = lut[src[y*SCREENWIDTH + x]];
 		    for (m=0 ; m<multiply ; m++)
 			*dst++ = c;
 		}
