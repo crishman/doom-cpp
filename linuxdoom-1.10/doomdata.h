@@ -24,6 +24,9 @@
 #ifndef __DOOMDATA__
 #define __DOOMDATA__
 
+#include <cstddef>
+#include <climits>
+
 // The most basic types we use, portability.
 #include "doomtype.h"
 
@@ -212,6 +215,23 @@ typedef struct
 
 
 
+
+// These structures describe bytes on disk, independent of native pointer size.
+static_assert(CHAR_BIT == 8);
+static_assert(sizeof(short) == 2);
+static_assert(sizeof(mapvertex_t) == 4);
+static_assert(sizeof(maplinedef_t) == 14);
+static_assert(sizeof(mapsidedef_t) == 30);
+static_assert(sizeof(mapsector_t) == 26);
+static_assert(sizeof(mapsubsector_t) == 4);
+static_assert(sizeof(mapseg_t) == 12);
+static_assert(sizeof(mapnode_t) == 28);
+static_assert(sizeof(mapthing_t) == 10);
+static_assert(offsetof(maplinedef_t, sidenum) == 10);
+static_assert(offsetof(mapsidedef_t, sector) == 28);
+static_assert(offsetof(mapsector_t, lightlevel) == 20);
+static_assert(offsetof(mapnode_t, bbox) == 8);
+static_assert(offsetof(mapnode_t, children) == 24);
 
 #endif			// __DOOMDATA__
 //-----------------------------------------------------------------------------
