@@ -40,6 +40,7 @@ static const char rcsid[] = "$Id: r_main.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 #include "r_local.h"
 #include "r_sky.h"
 #include "r_distance.h"
+#include "r_light.h"
 
 
 
@@ -589,36 +590,10 @@ void R_InitTextureMapping (void)
 // Only inits the zlight table,
 //  because the scalelight table changes with view size.
 //
-#define DISTMAP		2
 
 void R_InitLightTables (void)
 {
-    int		i;
-    int		j;
-    int		level;
-    int		startmap; 	
-    int		scale;
-    
-    // Calculate the light levels to use
-    //  for each level / distance combination.
-    for (i=0 ; i< LIGHTLEVELS ; i++)
-    {
-	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
-	for (j=0 ; j<MAXLIGHTZ ; j++)
-	{
-	    scale = FixedDiv ((SCREENWIDTH/2*FRACUNIT), (j+1)<<LIGHTZSHIFT);
-	    scale >>= LIGHTSCALESHIFT;
-	    level = startmap - scale/DISTMAP;
-	    
-	    if (level < 0)
-		level = 0;
-
-	    if (level >= NUMCOLORMAPS)
-		level = NUMCOLORMAPS-1;
-
-	    zlight[i][j] = colormaps + level*256;
-	}
-    }
+    lighting::BindDistanceMaps(colormaps, zlight);
 }
 
 
@@ -727,7 +702,7 @@ void R_ExecuteSetViewSize (void)
 	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
 	for (j=0 ; j<MAXLIGHTSCALE ; j++)
 	{
-	    level = startmap - j*SCREENWIDTH/(viewwidth<<detailshift)/DISTMAP;
+	    level = startmap - j*SCREENWIDTH/(viewwidth<<detailshift)/lighting::distance_map;
 	    
 	    if (level < 0)
 		level = 0;

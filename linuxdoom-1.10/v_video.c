@@ -41,6 +41,7 @@ rcsid[] = "$Id: v_video.c,v 1.5 1997/02/03 22:45:13 b1 Exp $";
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 
 
 // Each screen is [SCREENWIDTH*SCREENHEIGHT]; 
@@ -50,8 +51,9 @@ int				dirtybox[4];
 
 
 
-// Now where did these came from?
-byte gammatable[5][256] =
+// Preserve the original palette ramps exactly, including repeated values.
+// The prior extern const declaration gives this constexpr definition external linkage.
+constexpr byte gammatable[][256] =
 {
     {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
      17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
@@ -134,6 +136,43 @@ byte gammatable[5][256] =
      243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,
      251,252,252,253,254,254,255,255}
 };
+
+
+static_assert(std::size(gammatable) == 5, "Expected five original gamma ramps");
+static_assert(std::size(gammatable[0]) == 256, "Expected one entry per palette intensity");
+
+static constexpr std::uint32_t GammaChecksum(const byte (&ramp)[256])
+{
+    std::uint32_t hash = 2166136261u;
+    for (byte value : ramp)
+        hash = (hash ^ value) * 16777619u;
+    return hash;
+}
+
+// FNV-1a checksums captured from each original row, before making it immutable.
+static_assert(GammaChecksum(gammatable[0]) == 0x3cb884c5u);
+static_assert(GammaChecksum(gammatable[1]) == 0x0b214ae1u);
+static_assert(GammaChecksum(gammatable[2]) == 0xe3bb07a6u);
+static_assert(GammaChecksum(gammatable[3]) == 0x57d16edau);
+static_assert(GammaChecksum(gammatable[4]) == 0x66a66ecau);
+
+static constexpr bool CheckGammaOrdering()
+{
+    for (std::size_t level = 0; level < std::size(gammatable); ++level)
+    {
+        if (gammatable[level][0] != (1u << level) || gammatable[level][255] != 255)
+            return false;
+        for (std::size_t intensity = 0; intensity < 256; ++intensity)
+        {
+            if (intensity && gammatable[level][intensity] < gammatable[level][intensity - 1])
+                return false;
+            if (level && gammatable[level][intensity] < gammatable[level - 1][intensity])
+                return false;
+        }
+    }
+    return true;
+}
+static_assert(CheckGammaOrdering(), "Gamma ramps must preserve brightness ordering");
 
 
 
