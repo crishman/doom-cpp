@@ -43,12 +43,12 @@
 
 
 // player radius for movement checking
-#define PLAYERRADIUS	16*FRACUNIT
+constexpr fixed_t PLAYERRADIUS = 16*FRACUNIT;
 
 // MAXRADIUS is for precalculated sector block boxes
 // the spider demon is larger,
 // but we do not have any moving sectors nearby
-#define MAXRADIUS		32*FRACUNIT
+constexpr fixed_t MAXRADIUS = 32*FRACUNIT;
 
 #define GRAVITY		FRACUNIT
 #define MAXMOVE		(30*FRACUNIT)

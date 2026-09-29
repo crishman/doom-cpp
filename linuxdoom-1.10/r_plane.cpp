@@ -56,7 +56,7 @@ visplane_t*		floorplane;
 visplane_t*		ceilingplane;
 
 // ?
-#define MAXOPENINGS	SCREENWIDTH*64
+constexpr int MAXOPENINGS = SCREENWIDTH*64;
 short			openings[MAXOPENINGS];
 short*			lastopening;
 

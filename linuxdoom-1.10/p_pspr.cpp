@@ -42,11 +42,11 @@ rcsid[] = "$Id: p_pspr.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include "p_pspr.h"
 
-#define LOWERSPEED		FRACUNIT*6
-#define RAISESPEED		FRACUNIT*6
+constexpr fixed_t LOWERSPEED = FRACUNIT*6;
+constexpr fixed_t RAISESPEED = FRACUNIT*6;
 
-#define WEAPONBOTTOM	128*FRACUNIT
-#define WEAPONTOP		32*FRACUNIT
+constexpr fixed_t WEAPONBOTTOM = 128*FRACUNIT;
+constexpr fixed_t WEAPONTOP = 32*FRACUNIT;
 
 
 // plasma cells for a bfg attack

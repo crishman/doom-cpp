@@ -361,7 +361,7 @@ typedef struct
 
 
 
-#define VDOORSPEED		FRACUNIT*2
+constexpr fixed_t VDOORSPEED = FRACUNIT*2;
 #define VDOORWAIT		150
 
 void

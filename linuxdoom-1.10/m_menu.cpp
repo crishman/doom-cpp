@@ -126,7 +126,7 @@ char			saveOldString[SAVESTRINGSIZE];
 boolean			inhelpscreens;
 boolean			menuactive;
 
-#define SKULLXOFF		-32
+constexpr int SKULLXOFF = -32;
 #define LINEHEIGHT		16
 
 extern boolean		sendpause;
@@ -1314,7 +1314,7 @@ M_WriteText
 	
     while(1)
     {
-	c = *ch++;
+	c = static_cast<unsigned char>(*ch++);
 	if (!c)
 	    break;
 	if (c == '\n')

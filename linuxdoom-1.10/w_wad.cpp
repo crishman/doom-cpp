@@ -84,10 +84,10 @@ int filelength (int handle)
 
 void
 ExtractFileBase
-( char*		path,
+( const char*	path,
   char*		dest )
 {
-    char*	src;
+    const char*	src;
     int		length;
 
     src = path + strlen(path) - 1;
@@ -109,7 +109,7 @@ ExtractFileBase
 	if (++length == 9)
 	    I_Error ("Filename base of %s >8 chars",path);
 
-	*dest++ = toupper((int)*src++);
+	*dest++ = (char)toupper((unsigned char)*src++);
     }
 }
 
@@ -135,10 +135,10 @@ ExtractFileBase
 // But: the reload feature is a fragile hack...
 
 int			reloadlump;
-char*			reloadname;
+const char*		reloadname;
 
 
-void W_AddFile (char *filename)
+void W_AddFile (const char *filename)
 {
     wadinfo_t		header;
     lumpinfo_t*		lump_p;
@@ -169,7 +169,7 @@ void W_AddFile (char *filename)
     printf (" adding %s\n",filename);
     startlump = numlumps;
 	
-    if (strcmpi (filename+strlen(filename)-3 , "wad" ) )
+    if (strcmpi (filename+strlen(filename)-3 , "wad" ) != 0)
     {
 	// single lump file
 	fileinfo = &singleinfo;
@@ -182,10 +182,10 @@ void W_AddFile (char *filename)
     {
 	// WAD file
 	read (handle, &header, sizeof(header));
-	if (strncmp(header.identification,"IWAD",4))
+	if (strncmp(header.identification,"IWAD",4) != 0)
 	{
 	    // Homebrew levels?
-	    if (strncmp(header.identification,"PWAD",4))
+	    if (strncmp(header.identification,"PWAD",4) != 0)
 	    {
 		I_Error ("Wad file %s doesn't have IWAD "
 			 "or PWAD id\n", filename);
@@ -289,7 +289,7 @@ void W_Reload (void)
 // The name searcher looks backwards, so a later file
 //  does override all earlier ones.
 //
-void W_InitMultipleFiles (char** filenames)
+void W_InitMultipleFiles (const char* const* filenames)
 {	
     int		size;
     
@@ -545,7 +545,7 @@ void W_Profile (void)
 	    else
 		ch = 'P';
 	}
-	info[i][profilecount] = ch;
+	info[i][profilecount] = static_cast<unsigned char>(ch);
     }
     profilecount++;
 	

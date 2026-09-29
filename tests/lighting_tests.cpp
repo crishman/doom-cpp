@@ -20,6 +20,10 @@ int main()
                 // Independent copy of the original runtime arithmetic. These
                 // positive inputs never reach FixedDiv's saturation threshold.
                 const int startmap = ((LIGHTLEVELS - 1 - light) * 2) * NUMCOLORMAPS / LIGHTLEVELS;
+                // SCREENWIDTH/2 is exact (320/2), and this must reproduce the
+                // engine's integer arithmetic bit for bit, which is the whole
+                // point of the test.
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 int scale = static_cast<int>(static_cast<double>(SCREENWIDTH / 2 * FRACUNIT)
                     / ((distance + 1) << LIGHTZSHIFT) * FRACUNIT);
                 scale >>= LIGHTSCALESHIFT;
