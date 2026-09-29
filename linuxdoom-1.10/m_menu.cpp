@@ -126,7 +126,7 @@ char			saveOldString[SAVESTRINGSIZE];
 boolean			inhelpscreens;
 boolean			menuactive;
 
-#define SKULLXOFF		-32
+constexpr int SKULLXOFF = -32;
 #define LINEHEIGHT		16
 
 extern boolean		sendpause;
