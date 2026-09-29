@@ -84,10 +84,10 @@ int filelength (int handle)
 
 void
 ExtractFileBase
-( char*		path,
+( const char*	path,
   char*		dest )
 {
-    char*	src;
+    const char*	src;
     int		length;
 
     src = path + strlen(path) - 1;
@@ -109,7 +109,7 @@ ExtractFileBase
 	if (++length == 9)
 	    I_Error ("Filename base of %s >8 chars",path);
 
-	*dest++ = toupper((int)*src++);
+	*dest++ = (char)toupper((unsigned char)*src++);
     }
 }
 
@@ -135,10 +135,10 @@ ExtractFileBase
 // But: the reload feature is a fragile hack...
 
 int			reloadlump;
-char*			reloadname;
+const char*		reloadname;
 
 
-void W_AddFile (char *filename)
+void W_AddFile (const char *filename)
 {
     wadinfo_t		header;
     lumpinfo_t*		lump_p;
@@ -289,7 +289,7 @@ void W_Reload (void)
 // The name searcher looks backwards, so a later file
 //  does override all earlier ones.
 //
-void W_InitMultipleFiles (char** filenames)
+void W_InitMultipleFiles (const char* const* filenames)
 {	
     int		size;
     
