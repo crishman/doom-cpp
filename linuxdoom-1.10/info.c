@@ -34,15 +34,11 @@ rcsid[] = "$Id: info.c,v 1.3 1997/01/26 07:45:00 b1 Exp $";
 #pragma implementation "info.h"
 #endif
 #include "info.h"
+#include "p_actions.h"
 
-#include "d_player.h"
 #include "p_mobj.h"
-#include "p_pspr.h"
 
-// NUMSPRITES + 1: R_InitSpriteDefs counts this list by scanning for a NULL
-// terminator, which the original table does not have. It only ever worked
-// because whatever followed in memory happened to be zero.
-char *sprnames[NUMSPRITES + 1] = {
+char *sprnames[NUMSPRITES] = {
     "TROO","SHTG","PUNG","PISG","PISF","SHTF","SHT2","CHGG","CHGF","MISG",
     "MISF","SAWG","PLSG","PLSF","BFGG","BFGF","BLUD","PUFF","BAL1","BAL2",
     "PLSS","PLSE","MISL","BFS1","BFE1","BFE2","TFOG","IFOG","PLAY","POSS",
@@ -56,90 +52,17 @@ char *sprnames[NUMSPRITES + 1] = {
     "POL3","POL1","POL6","GOR2","GOR3","GOR4","GOR5","SMIT","COL1","COL2",
     "COL3","COL4","CAND","CBRA","COL6","TRE1","TRE2","ELEC","CEYE","FSKU",
     "COL5","TBLU","TGRN","TRED","SMBT","SMGT","SMRT","HDB1","HDB2","HDB3",
-    "HDB4","HDB5","HDB6","POB1","POB2","BRS1","TLMP","TLP2",
-    NULL
+    "HDB4","HDB5","HDB6","POB1","POB2","BRS1","TLMP","TLP2"
 };
 
 
-// Action functions, declared with their true signatures so that C++ name
-// mangling matches the definitions in p_enemy.c / p_pspr.c / p_mobj.c.
-// They are stored in the actionf_t union (first member actionf_p1), which
-// is what the casts in the states[] table below rely on.
-void A_Light0(player_t* player, pspdef_t* psp);
-void A_WeaponReady(player_t* player, pspdef_t* psp);
-void A_Lower(player_t* player, pspdef_t* psp);
-void A_Raise(player_t* player, pspdef_t* psp);
-void A_Punch(player_t* player, pspdef_t* psp);
-void A_ReFire(player_t* player, pspdef_t* psp);
-void A_FirePistol(player_t* player, pspdef_t* psp);
-void A_Light1(player_t* player, pspdef_t* psp);
-void A_FireShotgun(player_t* player, pspdef_t* psp);
-void A_Light2(player_t* player, pspdef_t* psp);
-void A_FireShotgun2(player_t* player, pspdef_t* psp);
-void A_CheckReload(player_t* player, pspdef_t* psp);
-void A_OpenShotgun2(player_t* player, pspdef_t* psp);
-void A_LoadShotgun2(player_t* player, pspdef_t* psp);
-void A_CloseShotgun2(player_t* player, pspdef_t* psp);
-void A_FireCGun(player_t* player, pspdef_t* psp);
-void A_GunFlash(player_t* player, pspdef_t* psp);
-void A_FireMissile(player_t* player, pspdef_t* psp);
-void A_Saw(player_t* player, pspdef_t* psp);
-void A_FirePlasma(player_t* player, pspdef_t* psp);
-void A_BFGsound(player_t* player, pspdef_t* psp);
-void A_FireBFG(player_t* player, pspdef_t* psp);
-void A_BFGSpray(mobj_t* actor);
-void A_Explode(mobj_t* actor);
-void A_Pain(mobj_t* actor);
-void A_PlayerScream(mobj_t* actor);
-void A_Fall(mobj_t* actor);
-void A_XScream(mobj_t* actor);
-void A_Look(mobj_t* actor);
-void A_Chase(mobj_t* actor);
-void A_FaceTarget(mobj_t* actor);
-void A_PosAttack(mobj_t* actor);
-void A_Scream(mobj_t* actor);
-void A_SPosAttack(mobj_t* actor);
-void A_VileChase(mobj_t* actor);
-void A_VileStart(mobj_t* actor);
-void A_VileTarget(mobj_t* actor);
-void A_VileAttack(mobj_t* actor);
-void A_StartFire(mobj_t* actor);
-void A_Fire(mobj_t* actor);
-void A_FireCrackle(mobj_t* actor);
-void A_Tracer(mobj_t* actor);
-void A_SkelWhoosh(mobj_t* actor);
-void A_SkelFist(mobj_t* actor);
-void A_SkelMissile(mobj_t* actor);
-void A_FatRaise(mobj_t* actor);
-void A_FatAttack1(mobj_t* actor);
-void A_FatAttack2(mobj_t* actor);
-void A_FatAttack3(mobj_t* actor);
-void A_BossDeath(mobj_t* actor);
-void A_CPosAttack(mobj_t* actor);
-void A_CPosRefire(mobj_t* actor);
-void A_TroopAttack(mobj_t* actor);
-void A_SargAttack(mobj_t* actor);
-void A_HeadAttack(mobj_t* actor);
-void A_BruisAttack(mobj_t* actor);
-void A_SkullAttack(mobj_t* actor);
-void A_Metal(mobj_t* actor);
-void A_SpidRefire(mobj_t* actor);
-void A_BabyMetal(mobj_t* actor);
-void A_BspiAttack(mobj_t* actor);
-void A_Hoof(mobj_t* actor);
-void A_CyberAttack(mobj_t* actor);
-void A_PainAttack(mobj_t* actor);
-void A_PainDie(mobj_t* actor);
-void A_KeenDie(mobj_t* actor);
-void A_BrainPain(mobj_t* actor);
-void A_BrainScream(mobj_t* actor);
-void A_BrainDie(mobj_t* actor);
-void A_BrainAwake(mobj_t* actor);
-void A_BrainSpit(mobj_t* actor);
-void A_SpawnSound(mobj_t* actor);
-void A_SpawnFly(mobj_t* actor);
-void A_BrainExplode(mobj_t* actor);
-
+// Check null entries and both callback signatures during compilation.
+static_assert(state_action_t{NULL}.actor == nullptr
+              && state_action_t{NULL}.weapon == nullptr);
+static_assert(state_action_t{A_Look}.actor == A_Look
+              && state_action_t{A_Look}.weapon == nullptr);
+static_assert(state_action_t{A_Light0}.weapon == A_Light0
+              && state_action_t{A_Light0}.actor == nullptr);
 
 state_t	states[NUMSTATES] = {
     {SPR_TROO,0,-1,{NULL},S_NULL,0,0},	// S_NULL
@@ -4676,4 +4599,3 @@ mobjinfo_t mobjinfo[NUMMOBJTYPES] = {
 	S_NULL		// raisestate
     }
 };
-

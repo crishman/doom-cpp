@@ -856,9 +856,9 @@ AM_clipMline
 	TOP	=8
     };
     
-    register	int outcode1 = 0;
-    register	int outcode2 = 0;
-    register	int outside;
+    int outcode1 = 0;
+    int outcode2 = 0;
+    int outside;
     
     fpoint_t	tmp;
     int		dx;

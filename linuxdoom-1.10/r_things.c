@@ -121,15 +121,15 @@ R_InstallSpriteLump
     if (rotation == 0)
     {
 	// the lump should be used for all rotations
-	if (sprtemp[frame].rotate == false)
+	if (sprtemp[frame].rotate == SpriteRotation::Single)
 	    I_Error ("R_InitSprites: Sprite %s frame %c has "
 		     "multip rot=0 lump", spritename, 'A'+frame);
 
-	if (sprtemp[frame].rotate == true)
+	if (sprtemp[frame].rotate == SpriteRotation::Directional)
 	    I_Error ("R_InitSprites: Sprite %s frame %c has rotations "
 		     "and a rot=0 lump", spritename, 'A'+frame);
 			
-	sprtemp[frame].rotate = false;
+	sprtemp[frame].rotate = SpriteRotation::Single;
 	for (r=0 ; r<8 ; r++)
 	{
 	    sprtemp[frame].lump[r] = lump - firstspritelump;
@@ -139,11 +139,11 @@ R_InstallSpriteLump
     }
 	
     // the lump is only used for one rotation
-    if (sprtemp[frame].rotate == false)
+    if (sprtemp[frame].rotate == SpriteRotation::Single)
 	I_Error ("R_InitSprites: Sprite %s frame %c has rotations "
 		 "and a rot=0 lump", spritename, 'A'+frame);
 		
-    sprtemp[frame].rotate = true;
+    sprtemp[frame].rotate = SpriteRotation::Directional;
 
     // make 0 based
     rotation--;		
@@ -161,8 +161,7 @@ R_InstallSpriteLump
 
 //
 // R_InitSpriteDefs
-// Pass a null terminated list of sprite names
-//  (4 chars exactly) to be used.
+// Pass a counted list of sprite names (4 chars exactly).
 // Builds the sprite rotation matrixes to account
 //  for horizontally flipped sprites.
 // Will report an error if the lumps are inconsistant. 
@@ -174,25 +173,20 @@ R_InstallSpriteLump
 //  letter/number appended.
 // The rotation character can be 0 to signify no rotations.
 //
-void R_InitSpriteDefs (char** namelist) 
+void R_InitSpriteDefs (char* const* namelist, int count)
 { 
-    char**	check;
     int		i;
     int		l;
-    int		intname;
     int		frame;
     int		rotation;
     int		start;
     int		end;
     int		patched;
 		
-    // count the number of sprite names
-    check = namelist;
-    while (*check != NULL)
-	check++;
+    if (count < 0)
+        I_Error("R_InitSpriteDefs: invalid sprite count");
+    numsprites = count;
 
-    numsprites = check-namelist;
-	
     if (!numsprites)
 	return;
 		
@@ -203,20 +197,26 @@ void R_InitSpriteDefs (char** namelist)
 	
     // scan all the lump names for each of the names,
     //  noting the highest frame letter.
-    // Just compare 4 characters as ints
+    // Compare the four name bytes without assuming integer alignment.
     for (i=0 ; i<numsprites ; i++)
     {
 	spritename = namelist[i];
-	memset (sprtemp,-1, sizeof(sprtemp));
+        for (auto& spriteframe : sprtemp)
+        {
+            spriteframe.rotate = SpriteRotation::Unset;
+            for (auto& lump : spriteframe.lump)
+                lump = -1;
+            for (auto& flip : spriteframe.flip)
+                flip = 0;
+        }
 		
 	maxframe = -1;
-	intname = *(int *)namelist[i];
 	
 	// scan the lumps,
 	//  filling in the frames for whatever is found
 	for (l=start+1 ; l<end ; l++)
 	{
-	    if (*(int *)lumpinfo[l].name == intname)
+	    if (memcmp(lumpinfo[l].name, namelist[i], 4) == 0)
 	    {
 		frame = lumpinfo[l].name[4] - 'A';
 		rotation = lumpinfo[l].name[5] - '0';
@@ -248,19 +248,19 @@ void R_InitSpriteDefs (char** namelist)
 	
 	for (frame = 0 ; frame < maxframe ; frame++)
 	{
-	    switch ((int)sprtemp[frame].rotate)
+	    switch (sprtemp[frame].rotate)
 	    {
-	      case -1:
+	      case SpriteRotation::Unset:
 		// no rotations were found for that frame at all
 		I_Error ("R_InitSprites: No patches found "
 			 "for %s frame %c", namelist[i], frame+'A');
 		break;
 		
-	      case 0:
+	      case SpriteRotation::Single:
 		// only the first rotation is needed
 		break;
 			
-	      case 1:
+	      case SpriteRotation::Directional:
 		// must have all 8 frames
 		for (rotation=0 ; rotation<8 ; rotation++)
 		    if (sprtemp[frame].lump[rotation] == -1)
@@ -296,7 +296,7 @@ int		newvissprite;
 // R_InitSprites
 // Called at program start.
 //
-void R_InitSprites (char** namelist)
+void R_InitSprites (char* const* namelist, int count)
 {
     int		i;
 	
@@ -305,7 +305,7 @@ void R_InitSprites (char** namelist)
 	negonearray[i] = -1;
     }
 	
-    R_InitSpriteDefs (namelist);
+    R_InitSpriteDefs (namelist, count);
 }
 
 
@@ -417,8 +417,8 @@ R_DrawVisSprite
     else if (vis->mobjflags & MF_TRANSLATION)
     {
 	colfunc = R_DrawTranslatedColumn;
-	dc_translation = translationtables - 256 +
-	    ( (vis->mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) );
+	dc_translation = translationtables +
+	    (((vis->mobjflags & MF_TRANSLATION) >> MF_TRANSSHIFT) - 1) * 256;
     }
 	
     dc_iscale = abs(vis->xiscale)>>detailshift;
@@ -516,7 +516,7 @@ void R_ProjectSprite (mobj_t* thing)
 #endif
     sprframe = &sprdef->spriteframes[ thing->frame & FF_FRAMEMASK];
 
-    if (sprframe->rotate)
+    if (sprframe->rotate == SpriteRotation::Directional)
     {
 	// choose a different rotation based on player view
 	ang = R_PointToAngle (thing->x, thing->y);

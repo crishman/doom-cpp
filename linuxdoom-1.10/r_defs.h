@@ -424,17 +424,19 @@ typedef struct vissprite_s
 // Some sprites will only have one picture used
 // for all views: NNNNF0
 //
+enum class SpriteRotation
+{
+    Unset,
+    Single,
+    Directional
+};
+
 typedef struct
 {
-    // If false use 0 for any position.
+    // Single uses the same patch for every view angle.
     // Note: as eight entries are available,
     //  we might as well insert the same name eight times.
-    //
-    // Tri-state, not a boolean: R_InitSpriteDefs does memset(sprtemp,-1,..) to
-    // mark frames as not yet seen, and switches on -1/0/1 below. A C++ bool
-    // cannot hold -1, so every unset frame read back as true and sprite
-    // loading failed with "has rotations and a rot=0 lump".
-    int		rotate;		// 1 rotations, 0 none, -1 not yet set
+    SpriteRotation rotate;
 
     // Lump to use for view angles 0-7.
     short	lump[8];

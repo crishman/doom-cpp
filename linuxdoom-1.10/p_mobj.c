@@ -74,8 +74,8 @@ P_SetMobjState
 
 	// Modified handling.
 	// Call action functions when the state is set
-	if (st->action.acp1)		
-	    st->action.acp1(mobj);	
+	if (st->action.actor)
+	    st->action.actor(mobj);
 	
 	state = st->nextstate;
     } while (!mobj->tics);

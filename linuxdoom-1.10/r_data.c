@@ -46,10 +46,12 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 #endif
 
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "r_data.h"
+#include <cstddef>
+#include <cstdint>
+#include <climits>
+#include <vector>
+#include <memory>
 
 //
 // Graphics.
@@ -71,11 +73,11 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 //
 typedef struct
 {
-    short	originx;
-    short	originy;
-    short	patch;
-    short	stepdir;
-    short	colormap;
+    std::int16_t originx;
+    std::int16_t originy;
+    std::int16_t patch;
+    std::int16_t stepdir;
+    std::int16_t colormap;
 } mappatch_t;
 
 
@@ -87,26 +89,19 @@ typedef struct
 typedef struct
 {
     char		name[8];
-    int			masked;			// 4 bytes on disk; never read
-    short		width;
-    short		height;
-    int			columndirectory;	// OBSOLETE: a 32-bit pointer on disk
-    short		patchcount;
+    std::int32_t masked;
+    std::int16_t width;
+    std::int16_t height;
+    std::int32_t columndirectory; // Obsolete 32-bit disk field, not a pointer.
+    std::int16_t patchcount;
     mappatch_t	patches[1];
 } maptexture_t;
 
-// This is the on-disk TEXTURE1/TEXTURE2 layout, so the offsets are fixed by
-// the WAD format and not ours to choose. It was written for a 32-bit compiler
-// where boolean was a 4-byte enum and a pointer was 4 bytes; as a 64-bit C++
-// build both assumptions broke and every field after name[] was read from the
-// wrong place, which put garbage in patchcount and walked R_InitTextures off
-// the end of patchlookup. Declaring the two dead fields by their true on-disk
-// widths restores the layout exactly; assert it so it cannot drift again.
-static_assert(offsetof(maptexture_t, width)      == 12, "bad maptexture_t layout");
-static_assert(offsetof(maptexture_t, height)     == 14, "bad maptexture_t layout");
-static_assert(offsetof(maptexture_t, patchcount) == 20, "bad maptexture_t layout");
-static_assert(offsetof(maptexture_t, patches)    == 22, "bad maptexture_t layout");
-static_assert(sizeof(mappatch_t)                 == 10, "bad mappatch_t layout");
+constexpr std::size_t maptexture_header_size = offsetof(maptexture_t, patches);
+static_assert(offsetof(maptexture_t, width) == 12);
+static_assert(offsetof(maptexture_t, patchcount) == 20);
+static_assert(maptexture_header_size == 22);
+static_assert(sizeof(mappatch_t) == 10);
 
 
 // A single patch from a texture definition,
@@ -426,9 +421,11 @@ R_GetColumn
 //
 void R_InitTextures (void)
 {
-    maptexture_t*	mtexture;
+    maptexture_t texture_header{};
+    maptexture_t* mtexture = &texture_header;
     texture_t*		texture;
-    mappatch_t*		mpatch;
+    mappatch_t patch_header{};
+    mappatch_t* mpatch = &patch_header;
     texpatch_t*		patch;
 
     int			i;
@@ -442,7 +439,7 @@ void R_InitTextures (void)
     char*		names;
     char*		name_p;
     
-    int*		patchlookup;
+    std::vector<int> patchlookup;
     
     int			totalwidth;
     int			nummappatches;
@@ -462,9 +459,14 @@ void R_InitTextures (void)
     // Load the patch names from pnames.lmp.
     name[8] = 0;	
     names = W_CacheLumpName ("PNAMES", PU_STATIC);
+    const int pnames_size = W_LumpLength(W_GetNumForName("PNAMES"));
+    if (pnames_size < 4)
+        I_Error("R_InitTextures: truncated PNAMES header");
     nummappatches = LONG ( *((int *)names) );
+    if (nummappatches < 0 || nummappatches > (pnames_size - 4) / 8)
+        I_Error("R_InitTextures: bad PNAMES count");
     name_p = names+4;
-    patchlookup = alloca (nummappatches*sizeof(*patchlookup));
+    patchlookup.resize(nummappatches);
     
     for (i=0 ; i<nummappatches ; i++)
     {
@@ -477,15 +479,23 @@ void R_InitTextures (void)
     // The data is contained in one or two lumps,
     //  TEXTURE1 for shareware, plus TEXTURE2 for commercial.
     maptex = maptex1 = W_CacheLumpName ("TEXTURE1", PU_STATIC);
-    numtextures1 = LONG(*maptex);
     maxoff = W_LumpLength (W_GetNumForName ("TEXTURE1"));
+    if (maxoff < 4)
+        I_Error("R_InitTextures: truncated TEXTURE1 header");
+    numtextures1 = LONG(*maptex);
+    if (numtextures1 < 0 || numtextures1 > (maxoff - 4) / 4)
+        I_Error("R_InitTextures: bad TEXTURE1 count");
     directory = maptex+1;
 	
     if (W_CheckNumForName ("TEXTURE2") != -1)
     {
 	maptex2 = W_CacheLumpName ("TEXTURE2", PU_STATIC);
-	numtextures2 = LONG(*maptex2);
-	maxoff2 = W_LumpLength (W_GetNumForName ("TEXTURE2"));
+        maxoff2 = W_LumpLength (W_GetNumForName ("TEXTURE2"));
+        if (maxoff2 < 4)
+            I_Error("R_InitTextures: truncated TEXTURE2 header");
+        numtextures2 = LONG(*maptex2);
+        if (numtextures2 < 0 || numtextures2 > (maxoff2 - 4) / 4)
+            I_Error("R_InitTextures: bad TEXTURE2 count");
     }
     else
     {
@@ -493,6 +503,8 @@ void R_InitTextures (void)
 	numtextures2 = 0;
 	maxoff2 = 0;
     }
+    if (numtextures1 > INT_MAX / static_cast<int>(sizeof(void*)) - numtextures2 - 1)
+        I_Error("R_InitTextures: too many textures");
     numtextures = numtextures1 + numtextures2;
 	
     textures = Z_Malloc (numtextures*sizeof(*textures), PU_STATIC, 0);
@@ -532,10 +544,18 @@ void R_InitTextures (void)
 		
 	offset = LONG(*directory);
 
-	if (offset > maxoff)
-	    I_Error ("R_InitTextures: bad texture directory");
-	
-	mtexture = (maptexture_t *) ( (byte *)maptex + offset);
+        if (offset < 0 || offset > maxoff
+            || maxoff - offset < static_cast<int>(maptexture_header_size))
+            I_Error("R_InitTextures: bad texture directory");
+
+        // Disk records need not have the alignment of native C++ structs.
+        const byte* record = reinterpret_cast<const byte*>(maptex) + offset;
+        memcpy(mtexture, record, maptexture_header_size);
+        const int patchcount = SHORT(mtexture->patchcount);
+        if (patchcount <= 0
+            || patchcount > (maxoff - offset - maptexture_header_size) / sizeof(mappatch_t)
+            || SHORT(mtexture->width) <= 0 || SHORT(mtexture->height) <= 0)
+            I_Error("R_InitTextures: invalid texture definition");
 
 	texture = textures[i] =
 	    Z_Malloc (sizeof(texture_t)
@@ -547,22 +567,26 @@ void R_InitTextures (void)
 	texture->patchcount = SHORT(mtexture->patchcount);
 
 	memcpy (texture->name, mtexture->name, sizeof(texture->name));
-	mpatch = &mtexture->patches[0];
 	patch = &texture->patches[0];
 
-	for (j=0 ; j<texture->patchcount ; j++, mpatch++, patch++)
+	for (j=0 ; j<texture->patchcount ; j++, patch++)
 	{
+            memcpy(mpatch, record + maptexture_header_size + j * sizeof(mappatch_t),
+                   sizeof(mappatch_t));
+            const int patchindex = SHORT(mpatch->patch);
+            if (patchindex < 0 || patchindex >= nummappatches)
+                I_Error("R_InitTextures: invalid patch index");
 	    patch->originx = SHORT(mpatch->originx);
 	    patch->originy = SHORT(mpatch->originy);
-	    patch->patch = patchlookup[SHORT(mpatch->patch)];
+	    patch->patch = patchlookup[patchindex];
 	    if (patch->patch == -1)
 	    {
-		I_Error ("R_InitTextures: Missing patch in texture %s",
+		I_Error ("R_InitTextures: Missing patch in texture %.8s",
 			 texture->name);
 	    }
 	}		
-	texturecolumnlump[i] = Z_Malloc (texture->width*2, PU_STATIC,0);
-	texturecolumnofs[i] = Z_Malloc (texture->width*2, PU_STATIC,0);
+	texturecolumnlump[i] = Z_Malloc (texture->width*sizeof(**texturecolumnlump), PU_STATIC,0);
+	texturecolumnofs[i] = Z_Malloc (texture->width*sizeof(**texturecolumnofs), PU_STATIC,0);
 
 	j = 1;
 	while (j*2 <= texture->width)
@@ -603,7 +627,7 @@ void R_InitFlats (void)
     numflats = lastflat - firstflat + 1;
 	
     // Create translation table for global animation.
-    flattranslation = Z_Malloc ((numflats+1)*sizeof(*flattranslation), PU_STATIC, 0);
+    flattranslation = Z_Malloc ((numflats+1)*4, PU_STATIC, 0);
     
     for (i=0 ; i<numflats ; i++)
 	flattranslation[i] = i;
@@ -625,9 +649,9 @@ void R_InitSpriteLumps (void)
     lastspritelump = W_GetNumForName ("S_END") - 1;
     
     numspritelumps = lastspritelump - firstspritelump + 1;
-    spritewidth = Z_Malloc (numspritelumps*sizeof(*spritewidth), PU_STATIC, 0);
-    spriteoffset = Z_Malloc (numspritelumps*sizeof(*spriteoffset), PU_STATIC, 0);
-    spritetopoffset = Z_Malloc (numspritelumps*sizeof(*spritetopoffset), PU_STATIC, 0);
+    spritewidth = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
+    spriteoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
+    spritetopoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
 	
     for (i=0 ; i< numspritelumps ; i++)
     {
@@ -653,9 +677,16 @@ void R_InitColormaps (void)
     // Load in the light tables, 
     //  256 byte align tables.
     lump = W_GetNumForName("COLORMAP"); 
-    length = W_LumpLength (lump) + 255; 
-    colormaps = Z_Malloc (length, PU_STATIC, 0); 
-    colormaps = (byte *)( ((uintptr_t)colormaps + 255)&~(uintptr_t)0xff); 
+    length = W_LumpLength(lump);
+    if (length <= 0 || length > INT_MAX - 255)
+        I_Error("R_InitColormaps: invalid lump length");
+    std::size_t space = static_cast<std::size_t>(length) + 255;
+    void* storage = Z_Malloc(static_cast<int>(space), PU_STATIC, 0);
+    // Align within the allocation without truncating a 64-bit address.
+    void* aligned = std::align(256, static_cast<std::size_t>(length), storage, space);
+    if (!aligned)
+        I_Error("R_InitColormaps: could not align buffer");
+    colormaps = static_cast<byte*>(aligned);
     W_ReadLump (lump,colormaps); 
 }
 

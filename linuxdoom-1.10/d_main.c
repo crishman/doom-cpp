@@ -41,6 +41,8 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #endif
 
 
+#include <string>
+
 #include "doomdef.h"
 #include "doomstat.h"
 
@@ -184,7 +186,7 @@ void D_ProcessEvents (void)
 //  draw current display, possibly wiping it from the previous
 //
 
-// wipegamestate can be set to -1 to force a wipe on the next draw
+// wipegamestate can be set to GS_INVALID to force a wipe on the next draw
 gamestate_t     wipegamestate = GS_DEMOSCREEN;
 extern  boolean setsizeneeded;
 extern  int             showMessages;
@@ -196,7 +198,7 @@ void D_Display (void)
     static  boolean		menuactivestate = false;
     static  boolean		inhelpscreensstate = false;
     static  boolean		fullscreen = false;
-    static  gamestate_t		oldgamestate = -1;
+    static  gamestate_t		oldgamestate = GS_INVALID;
     static  int			borderdrawcount;
     int				nowtime;
     int				tics;
@@ -215,7 +217,7 @@ void D_Display (void)
     if (setsizeneeded)
     {
 	R_ExecuteSetViewSize ();
-	oldgamestate = -1;                      // force background redraw
+	oldgamestate = GS_INVALID;                      // force background redraw
 	borderdrawcount = 3;
     }
 
@@ -540,7 +542,7 @@ char            title[128];
 //
 // D_AddFile
 //
-void D_AddFile (char *file)
+void D_AddFile (const char *file)
 {
     int     numwadfiles;
     char    *newfile;
@@ -563,14 +565,14 @@ void D_AddFile (char *file)
 void IdentifyVersion (void)
 {
 
-    char*	doom1wad;
-    char*	doomwad;
-    char*	doomuwad;
-    char*	doom2wad;
+    std::string doom1wad;
+    std::string doomwad;
+    std::string doomuwad;
+    std::string doom2wad;
 
-    char*	doom2fwad;
-    char*	plutoniawad;
-    char*	tntwad;
+    std::string doom2fwad;
+    std::string plutoniawad;
+    std::string tntwad;
 
 #ifdef NORMALUNIX
     char *home;
@@ -579,34 +581,16 @@ void IdentifyVersion (void)
     if (!doomwaddir)
 	doomwaddir = ".";
 
-    // Commercial.
-    doom2wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom2wad, "%s/doom2.wad", doomwaddir);
-
-    // Retail.
-    doomuwad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doomuwad, "%s/doomu.wad", doomwaddir);
-    
-    // Registered.
-    doomwad = malloc(strlen(doomwaddir)+1+8+1);
-    sprintf(doomwad, "%s/doom.wad", doomwaddir);
-    
-    // Shareware.
-    doom1wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom1wad, "%s/doom1.wad", doomwaddir);
-
-     // Bug, dear Shawn.
-    // Insufficient malloc, caused spurious realloc errors.
-    plutoniawad = malloc(strlen(doomwaddir)+1+/*9*/12+1);
-    sprintf(plutoniawad, "%s/plutonia.wad", doomwaddir);
-
-    tntwad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(tntwad, "%s/tnt.wad", doomwaddir);
-
-
-    // French stuff.
-    doom2fwad = malloc(strlen(doomwaddir)+1+10+1);
-    sprintf(doom2fwad, "%s/doom2f.wad", doomwaddir);
+    // Own the paths so filenames, separators, and terminators need no
+    // manually sized buffers. D_AddFile copies the selected path.
+    const std::string wadprefix = std::string(doomwaddir) + "/";
+    doom2wad = wadprefix + "doom2.wad";
+    doomuwad = wadprefix + "doomu.wad";
+    doomwad = wadprefix + "doom.wad";
+    doom1wad = wadprefix + "doom1.wad";
+    plutoniawad = wadprefix + "plutonia.wad";
+    tntwad = wadprefix + "tnt.wad";
+    doom2fwad = wadprefix + "doom2f.wad";
 
     home = getenv("HOME");
     if (!home)
@@ -655,56 +639,56 @@ void IdentifyVersion (void)
 	return;
     }
 
-    if ( !access (doom2fwad,R_OK) )
+    if ( !access (doom2fwad.c_str(),R_OK) )
     {
 	gamemode = commercial;
 	// C'est ridicule!
 	// Let's handle languages in config files, okay?
 	language = french;
 	printf("French version\n");
-	D_AddFile (doom2fwad);
+	D_AddFile (doom2fwad.c_str());
 	return;
     }
 
-    if ( !access (doom2wad,R_OK) )
+    if ( !access (doom2wad.c_str(),R_OK) )
     {
 	gamemode = commercial;
-	D_AddFile (doom2wad);
+	D_AddFile (doom2wad.c_str());
 	return;
     }
 
-    if ( !access (plutoniawad, R_OK ) )
+    if ( !access (plutoniawad.c_str(), R_OK ) )
     {
       gamemode = commercial;
-      D_AddFile (plutoniawad);
+      D_AddFile (plutoniawad.c_str());
       return;
     }
 
-    if ( !access ( tntwad, R_OK ) )
+    if ( !access ( tntwad.c_str(), R_OK ) )
     {
       gamemode = commercial;
-      D_AddFile (tntwad);
+      D_AddFile (tntwad.c_str());
       return;
     }
 
-    if ( !access (doomuwad,R_OK) )
+    if ( !access (doomuwad.c_str(),R_OK) )
     {
       gamemode = retail;
-      D_AddFile (doomuwad);
+      D_AddFile (doomuwad.c_str());
       return;
     }
 
-    if ( !access (doomwad,R_OK) )
+    if ( !access (doomwad.c_str(),R_OK) )
     {
       gamemode = registered;
-      D_AddFile (doomwad);
+      D_AddFile (doomwad.c_str());
       return;
     }
 
-    if ( !access (doom1wad,R_OK) )
+    if ( !access (doom1wad.c_str(),R_OK) )
     {
       gamemode = shareware;
-      D_AddFile (doom1wad);
+      D_AddFile (doom1wad.c_str());
       return;
     }
 

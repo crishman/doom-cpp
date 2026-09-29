@@ -900,7 +900,7 @@ void M_VerifyNightmare(int ch)
     if (ch != 'y')
 	return;
 		
-    G_DeferedInitNew((skill_t)nightmare,epi+1,1);
+    G_DeferedInitNew(sk_nightmare,epi+1,1);
     M_ClearMenus ();
 }
 
@@ -1890,4 +1890,3 @@ void M_Init (void)
     }
     
 }
-

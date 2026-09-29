@@ -31,6 +31,7 @@ rcsid[] = "$Id: p_pspr.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include "m_random.h"
 #include "p_local.h"
+#include "p_actions.h"
 #include "s_sound.h"
 
 // State.
@@ -88,9 +89,9 @@ P_SetPsprite
 	
 	// Call action routine.
 	// Modified handling.
-	if (state->action.acp2)
+	if (state->action.weapon)
 	{
-	    state->action.acp2(player, psp);
+	    state->action.weapon(player, psp);
 	    if (!psp->state)
 		break;
 	}

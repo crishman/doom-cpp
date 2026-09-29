@@ -26,6 +26,7 @@
 
 // Needed for action function pointer handling.
 #include "d_think.h"
+#include "p_actions.h"
 
 typedef enum
 {
@@ -1149,14 +1150,13 @@ typedef struct
   spritenum_t	sprite;
   long			frame;
   long			tics;
-  // void		(*action) ();
-  actionf_t			action;
+  state_action_t		action;
   statenum_t			nextstate;
   long			misc1, misc2;
 } state_t;
 
 extern state_t	states[NUMSTATES];
-extern char *sprnames[NUMSPRITES + 1];
+extern char *sprnames[NUMSPRITES];
 
 
 

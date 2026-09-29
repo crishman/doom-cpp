@@ -28,9 +28,8 @@ static const char
 rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 
-#include <stdint.h>
-
 #include "doomdef.h"
+#include <array>
 
 #include "i_system.h"
 #include "z_zone.h"
@@ -381,8 +380,40 @@ void R_DrawFuzzColumn (void)
 //  of the BaronOfHell, the HellKnight, uses
 //  identical sprites, kinda brightened up.
 //
-byte*	dc_translation;
-byte*	translationtables;
+namespace
+{
+constexpr auto MakePlayerTranslationTables()
+{
+    std::array<byte, 3 * 256> tables{};
+    constexpr unsigned ramps[] = {0x60, 0x40, 0x20};
+    for (unsigned ramp = 0; ramp < 3; ++ramp)
+        for (unsigned color = 0; color < 256; ++color)
+            tables[ramp * 256 + color] = static_cast<byte>(
+                color >= 0x70 && color <= 0x7f
+                    ? ramps[ramp] + (color & 0x0f) : color);
+    return tables;
+}
+
+// Each of the three contiguous tables starts on a 256-byte boundary.
+alignas(256) constexpr auto player_translation_tables = MakePlayerTranslationTables();
+
+constexpr bool CheckPlayerTranslationTables()
+{
+    for (unsigned ramp = 0; ramp < 3; ++ramp)
+        for (unsigned color = 0; color < 256; ++color)
+        {
+            const unsigned expected = color / 16 == 7
+                ? color - 0x10 - ramp * 0x20 : color;
+            if (player_translation_tables[ramp * 256 + color] != expected)
+                return false;
+        }
+    return true;
+}
+static_assert(CheckPlayerTranslationTables());
+}
+
+const byte* dc_translation;
+const byte* const translationtables = player_translation_tables.data();
 
 void R_DrawTranslatedColumn (void) 
 { 
@@ -447,42 +478,6 @@ void R_DrawTranslatedColumn (void)
 	frac += fracstep; 
     } while (count--); 
 } 
-
-
-
-
-//
-// R_InitTranslationTables
-// Creates the translation tables to map
-//  the green color ramp to gray, brown, red.
-// Assumes a given structure of the PLAYPAL.
-// Could be read from a lump instead.
-//
-void R_InitTranslationTables (void)
-{
-    int		i;
-	
-    translationtables = Z_Malloc (256*3+255, PU_STATIC, 0);
-    translationtables = (byte *)(( (uintptr_t)translationtables + 255 )& ~(uintptr_t)255);
-    
-    // translate just the 16 green colors
-    for (i=0 ; i<256 ; i++)
-    {
-	if (i >= 0x70 && i<= 0x7f)
-	{
-	    // map green ramp to gray, brown, red
-	    translationtables[i] = 0x60 + (i&0xf);
-	    translationtables [i+256] = 0x40 + (i&0xf);
-	    translationtables [i+512] = 0x20 + (i&0xf);
-	}
-	else
-	{
-	    // Keep all other colors as is.
-	    translationtables[i] = translationtables[i+256] 
-		= translationtables[i+512] = i;
-	}
-    }
-}
 
 
 

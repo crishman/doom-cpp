@@ -353,6 +353,8 @@ static st_binicon_t	w_armsbg;
 
 // weapon ownership widgets
 static st_multicon_t	w_arms[6];
+// Integer icon indices derived from the player's boolean ownership flags.
+static int              st_armicons[6];
 
 // face status widget
 static st_multicon_t	w_faces; 
@@ -1075,7 +1077,10 @@ void ST_drawWidgets(boolean refresh)
     STlib_updateBinIcon(&w_armsbg, refresh);
 
     for (i=0;i<6;i++)
+    {
+        st_armicons[i] = plyr->weaponowned[i+1] ? 1 : 0;
 	STlib_updateMultIcon(&w_arms[i], refresh);
+    }
 
     STlib_updateMultIcon(&w_faces, refresh);
 
@@ -1316,10 +1321,11 @@ void ST_createWidgets(void)
     // weapons owned
     for(i=0;i<6;i++)
     {
+	st_armicons[i] = plyr->weaponowned[i+1] ? 1 : 0;
 	STlib_initMultIcon(&w_arms[i],
 			   ST_ARMSX+(i%3)*ST_ARMSXSPACE,
 			   ST_ARMSY+(i/3)*ST_ARMSYSPACE,
-			   arms[i], (int *) &plyr->weaponowned[i+1],
+			   arms[i], &st_armicons[i],
 			   &st_armson);
     }
 

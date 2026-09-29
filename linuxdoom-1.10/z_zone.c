@@ -25,6 +25,7 @@ static const char
 rcsid[] = "$Id: z_zone.c,v 1.4 1997/02/03 16:47:58 b1 Exp $";
 
 #include "z_zone.h"
+#include <climits>
 #include "i_system.h"
 #include "doomdef.h"
 
@@ -56,6 +57,19 @@ typedef struct
 } memzone_t;
 
 
+
+// Headers, payloads, and split blocks all share the same alignment.
+constexpr int zone_alignment = alignof(memblock_t);
+static_assert(sizeof(memblock_t) % zone_alignment == 0);
+static_assert(sizeof(memzone_t) % zone_alignment == 0);
+
+constexpr int AlignZoneSize(int size)
+{
+    return (size + zone_alignment - 1) & ~(zone_alignment - 1);
+}
+static_assert(AlignZoneSize(1) == zone_alignment);
+static_assert(AlignZoneSize(zone_alignment) == zone_alignment);
+static_assert(AlignZoneSize(zone_alignment + 1) == 2 * zone_alignment);
 
 memzone_t*	mainzone;
 
@@ -192,7 +206,10 @@ Z_Malloc
     memblock_t* newblock;
     memblock_t*	base;
 
-    size = (size + 3) & ~3;
+    if (size < 0 || size > INT_MAX - static_cast<int>(sizeof(memblock_t))
+                                      - (zone_alignment - 1))
+        I_Error("Z_Malloc: invalid allocation size %i", size);
+    size = AlignZoneSize(size);
     
     // scan through the block list,
     // looking for the first free block

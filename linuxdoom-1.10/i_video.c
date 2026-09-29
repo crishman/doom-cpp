@@ -25,6 +25,7 @@ static const char
 rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 #include <stdlib.h>
+#include <cstdint>
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -52,6 +53,8 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
 #include "doomstat.h"
 #include "i_system.h"
 #include "v_video.h"
+#include "w_wad.h"
+#include "z_zone.h"
 #include "m_argv.h"
 #include "d_main.h"
 
@@ -67,6 +70,8 @@ GC		X_gc;
 XEvent		X_event;
 int		X_screen;
 XVisualInfo	X_visualinfo;
+static bool X_truecolor = false;
+static unsigned long X_palette[256];
 XImage*		image;
 int		X_width;
 int		X_height;
@@ -75,16 +80,9 @@ int		X_height;
 boolean		doShm;
 
 XShmSegmentInfo	X_shminfo;
+static bool shm_segment_acquired = false;
+static bool shm_server_attached = false;
 int		X_shmeventtype;
-
-// Set when we could not get an 8-bit PseudoColor visual and are running on a
-// TrueColor one instead. Xorg dropped PseudoColor years ago, so this is the
-// normal case on a modern desktop; the PseudoColor path is kept because it is
-// what a Xephyr -screen WxHx8 server still provides.
-boolean		X_truecolor;
-
-// Doom's 8-bit palette expanded to native pixels, rebuilt by I_SetPalette.
-unsigned long	X_pallut[256];
 
 // Fake mouse handling.
 // This cannot work properly w/o DGA.
@@ -172,22 +170,36 @@ int xlatekey(void)
 
 void I_ShutdownGraphics(void)
 {
-  // I_Error() can fire before I_InitGraphics() has run (a missing WAD, say),
-  // and it calls us on the way out. Without this, every such startup error
-  // is reported as a segfault inside Xlib instead of its actual message.
-  if (!X_display)
-    return;
+  // Error handling also calls this before graphics initialization completes.
+  if (shm_server_attached && X_display)
+  {
+      shm_server_attached = false;
+      XShmDetach(X_display, &X_shminfo);
+      XSync(X_display, False);
+  }
 
-  // Detach from X server
-  if (!XShmDetach(X_display, &X_shminfo))
-	    I_Error("XShmDetach() failed in I_ShutdownGraphics()");
+  if (shm_segment_acquired)
+  {
+      if (X_shminfo.shmaddr && X_shminfo.shmaddr != (char*)-1)
+          shmdt(X_shminfo.shmaddr);
+      shmctl(X_shminfo.shmid, IPC_RMID, 0);
+      shm_segment_acquired = false;
+      X_shminfo.shmaddr = nullptr;
+      // XDestroyImage must not free memory owned by the shared segment.
+      if (image)
+          image->data = nullptr;
+  }
 
-  // Release shared memory.
-  shmdt(X_shminfo.shmaddr);
-  shmctl(X_shminfo.shmid, IPC_RMID, 0);
-
-  // Paranoia.
-  image->data = NULL;
+  if (image)
+  {
+      XDestroyImage(image);
+      image = nullptr;
+  }
+  if (X_display)
+  {
+      XCloseDisplay(X_display);
+      X_display = nullptr;
+  }
 }
 
 
@@ -364,28 +376,24 @@ void I_UpdateNoBlit (void)
 //
 // I_FinishUpdate
 //
-//
-// Byte-swap a 32-bit pixel. The channel masks in X_pallut fix a pixel's
-// numeric value, but not how its four bytes are laid down in the image; a
-// server whose byte order differs from ours needs the reverse order.
-//
-static unsigned int SwapPixel (unsigned int c)
+// TrueColor visuals describe contiguous channel masks. Scale an 8-bit
+// palette channel to that mask, including 5/6-bit and 10-bit channels.
+static constexpr unsigned long PackColorChannel(byte value, unsigned long mask)
 {
-    return ((c & 0x000000ff) << 24)
-	|  ((c & 0x0000ff00) << 8)
-	|  ((c & 0x00ff0000) >> 8)
-	|  ((c & 0xff000000) >> 24);
+    if (!mask)
+        return 0;
+    unsigned shift = 0;
+    while ((mask & 1ul) == 0)
+    {
+        mask >>= 1;
+        ++shift;
+    }
+    return static_cast<unsigned long>(
+        (static_cast<std::uint64_t>(value) * mask + 127) / 255) << shift;
 }
-
-//
-// True when this machine stores the most significant byte first.
-//
-static boolean HostMSBFirst (void)
-{
-    static const unsigned int	one = 1;
-
-    return ((const unsigned char *) &one)[0] == 0;
-}
+static_assert(PackColorChannel(255, 0xff0000) == 0xff0000);
+static_assert(PackColorChannel(255, 0xf800) == 0xf800);
+static_assert(PackColorChannel(0, 0xff00) == 0);
 
 void I_FinishUpdate (void)
 {
@@ -411,43 +419,16 @@ void I_FinishUpdate (void)
     
     }
 
-    // scales the screen size before blitting it
+    // Expand indexed pixels using the current palette. XPutPixel handles the
+    // XImage's pixel width, row stride, and server byte order.
     if (X_truecolor)
     {
-	// Expand the paletted frame into native pixels, scaling by `multiply`
-	// with nearest-neighbour replication.
-	//
-	// image->byte_order is the order the *server* wants, which need not be
-	// ours when the display is remote. Fold any swap into a local copy of
-	// the palette so the inner loop stays a plain 32-bit store; 256 entries
-	// per frame is nothing next to the pixels.
-	int		x, y, m, n, i;
-	const byte*	src = screens[0];
-	unsigned int	lut[256];
-	boolean		swap;
-
-	swap = ((image->byte_order == MSBFirst) != HostMSBFirst());
-
-	for (i=0 ; i<256 ; i++)
-	    lut[i] = swap ? SwapPixel ((unsigned int) X_pallut[i])
-			  : (unsigned int) X_pallut[i];
-
-	for (y=0 ; y<SCREENHEIGHT ; y++)
-	{
-	    for (n=0 ; n<multiply ; n++)
-	    {
-		unsigned int*	dst = (unsigned int *)
-		    (image->data + (y*multiply + n) * image->bytes_per_line);
-
-		for (x=0 ; x<SCREENWIDTH ; x++)
-		{
-		    unsigned int c = lut[src[y*SCREENWIDTH + x]];
-		    for (m=0 ; m<multiply ; m++)
-			*dst++ = c;
-		}
-	    }
-	}
+        for (int y = 0; y < X_height; ++y)
+            for (int x = 0; x < X_width; ++x)
+                XPutPixel(image, x, y,
+                    X_palette[screens[0][(y / multiply) * SCREENWIDTH + x / multiply]]);
     }
+    // scales the screen size before blitting it
     else if (multiply == 2)
     {
 	unsigned int *olineptrs[2];
@@ -616,6 +597,21 @@ void UploadNewPalette(Colormap cmap, byte *palette)
     register int	c;
     static boolean	firstcall = true;
 
+    if (X_truecolor)
+    {
+        for (int index = 0; index < 256; ++index)
+        {
+            const byte red = gammatable[usegamma][palette[index * 3]];
+            const byte green = gammatable[usegamma][palette[index * 3 + 1]];
+            const byte blue = gammatable[usegamma][palette[index * 3 + 2]];
+            X_palette[index] = PackColorChannel(red, X_visualinfo.red_mask)
+                | PackColorChannel(green, X_visualinfo.green_mask)
+                | PackColorChannel(blue, X_visualinfo.blue_mask);
+        }
+        return;
+    }
+
+
 #ifdef __cplusplus
     if (X_visualinfo.c_class == PseudoColor && X_visualinfo.depth == 8)
 #else
@@ -647,26 +643,6 @@ void UploadNewPalette(Colormap cmap, byte *palette)
 	    // store the colors to the current colormap
 	    XStoreColors(X_display, cmap, colors, 256);
 
-	}
-    else if (X_truecolor)
-	{
-	    // No server-side palette to store into: precompute the native
-	    // pixel for each of the 256 entries instead. Scaling by the mask
-	    // places each component correctly for any contiguous channel
-	    // layout, so this does not assume a particular byte order.
-	    for (i=0 ; i<256 ; i++)
-	    {
-		unsigned long	r, g, b;
-
-		c = gammatable[usegamma][*palette++];  r = c;
-		c = gammatable[usegamma][*palette++];  g = c;
-		c = gammatable[usegamma][*palette++];  b = c;
-
-		X_pallut[i] =
-		      (((r * X_visualinfo.red_mask)   / 255) & X_visualinfo.red_mask)
-		    | (((g * X_visualinfo.green_mask) / 255) & X_visualinfo.green_mask)
-		    | (((b * X_visualinfo.blue_mask)  / 255) & X_visualinfo.blue_mask);
-	    }
 	}
 }
 
@@ -774,6 +750,7 @@ void grabsharedmemory(int size)
     }	
   
   X_shminfo.shmid = id;
+  shm_segment_acquired = true;
   
   // attach to the shared memory segment
   image->data = X_shminfo.shmaddr = shmat(id, 0, 0);
@@ -859,25 +836,16 @@ void I_InitGraphics(void)
 	    I_Error("Could not open display (DISPLAY=[%s])", getenv("DISPLAY"));
     }
 
-    // Prefer the 8-bit PseudoColor visual the engine was written for, where
-    // the X server does the palette lookup for us. Failing that, take a
-    // TrueColor visual and expand the palette ourselves in I_FinishUpdate.
     X_screen = DefaultScreen(X_display);
-    if (XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
-    {
-	X_truecolor = false;
-    }
-    else if (XMatchVisualInfo(X_display, X_screen, 24, TrueColor, &X_visualinfo)
-	     || XMatchVisualInfo(X_display, X_screen, 32, TrueColor, &X_visualinfo))
-    {
-	X_truecolor = true;
-    }
-    else
-	I_Error("xdoom needs an 8-bit PseudoColor or a 24/32-bit TrueColor visual");
+    X_truecolor = XMatchVisualInfo(X_display, X_screen,
+        DefaultDepth(X_display, X_screen), TrueColor, &X_visualinfo);
+    if (!X_truecolor
+        && !XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
+        I_Error("No supported TrueColor or 8-bit PseudoColor visual");
     X_visual = X_visualinfo.visual;
 
-    // check for the MITSHM extension
-    doShm = XShmQueryExtension(X_display);
+    // The TrueColor path uses XPutImage, including on remote displays.
+    doShm = !X_truecolor && XShmQueryExtension(X_display);
 
     // even if it's available, make sure it's a local connection
     if (doShm)
@@ -892,11 +860,12 @@ void I_InitGraphics(void)
 	}
     }
 
-    fprintf(stderr, "Using MITSHM extension\n");
+    if (doShm)
+        fprintf(stderr, "Using MITSHM extension\n");
 
     // create the colormap
-    X_cmap = XCreateColormap(X_display, RootWindow(X_display, X_screen),
-			     X_visual, X_truecolor ? AllocNone : AllocAll);
+    X_cmap = XCreateColormap(X_display, RootWindow(X_display,
+						   X_screen), X_visual, X_truecolor ? AllocNone : AllocAll);
 
     // setup attributes for main window
     attribmask = CWEventMask | CWColormap | CWBorderPixel;
@@ -962,7 +931,7 @@ void I_InitGraphics(void)
 	// create the image
 	image = XShmCreateImage(	X_display,
 					X_visual,
-					X_visualinfo.depth,
+					8,
 					ZPixmap,
 					0,
 					&X_shminfo,
@@ -986,7 +955,7 @@ void I_InitGraphics(void)
 	// image->data = X_shminfo.shmaddr = shmat(X_shminfo.shmid, 0, 0);
 	
 
-	if (!image->data)
+	if (image->data == (char*)-1)
 	{
 	    perror("");
 	    I_Error("shmat() failed in InitGraphics()");
@@ -995,35 +964,34 @@ void I_InitGraphics(void)
 	// get the X server to attach to it
 	if (!XShmAttach(X_display, &X_shminfo))
 	    I_Error("XShmAttach() failed in InitGraphics()");
+        shm_server_attached = true;
 
     }
     else
     {
-	image = XCreateImage(	X_display,
-    				X_visual,
-    				X_visualinfo.depth,
-    				ZPixmap,
-    				0,
-    				(char*)malloc(X_width * X_height * 4),
-    				X_width, X_height,
-    				32,
-    				0 );	// let Xlib compute bytes_per_line
-
+        image = XCreateImage(X_display, X_visual, X_visualinfo.depth,
+                             ZPixmap, 0, nullptr, X_width, X_height,
+                             X_truecolor ? 32 : 8, 0);
+        if (!image)
+            I_Error("XCreateImage() failed in InitGraphics()");
+        image->data = static_cast<char*>(calloc(image->height, image->bytes_per_line));
+        if (!image->data)
+            I_Error("Could not allocate XImage pixels");
     }
 
-    if (X_truecolor)
+    // TrueColor presentation keeps the indexed screen allocated by V_Init.
+    if (!X_truecolor)
     {
-	// The X image holds native pixels now, so Doom cannot draw straight
-	// into it; give it its own paletted buffer to render to.
-	if (image->bits_per_pixel != 32)
-	    I_Error("xdoom needs a 32-bits-per-pixel TrueColor visual, got %d",
-		    image->bits_per_pixel);
-	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
+        if (multiply == 1)
+            screens[0] = reinterpret_cast<byte*>(image->data);
+        else
+        {
+            screens[0] = static_cast<byte*>(malloc(SCREENWIDTH * SCREENHEIGHT));
+            if (!screens[0])
+                I_Error("Could not allocate indexed framebuffer");
+        }
     }
-    else if (multiply == 1)
-	screens[0] = (unsigned char *) (image->data);
-    else
-	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
+    I_SetPalette(static_cast<byte*>(W_CacheLumpName("PLAYPAL", PU_CACHE)));
 
 }
 
@@ -1159,5 +1127,4 @@ Expand4
 	xline += step;
     } while (y--);
 }
-
 

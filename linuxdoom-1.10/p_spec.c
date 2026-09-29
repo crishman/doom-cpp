@@ -72,11 +72,7 @@ typedef struct
 //
 typedef struct
 {
-    // Tri-state, not a boolean: the animdefs[] table is terminated by a {-1}
-    // entry and P_InitPicAnims loops until istexture == -1. As a C++ bool that
-    // sentinel stores as 1, the loop never terminates, and it runs off the end
-    // of the table feeding garbage to R_TextureNumForName.
-    int		istexture;	// 1 texture, 0 flat, -1 end of table
+    boolean	istexture;	// if false, it is a flat
     char	endname[9];
     char	startname[9];
     int		speed;
@@ -130,10 +126,11 @@ animdef_t		animdefs[] =
     {true,	"BFALL4",	"BFALL1",	8},
     {true,	"SFALL4",	"SFALL1",	8},
     {true,	"WFALL4",	"WFALL1",	8},
-    {true,	"DBRAIN4",	"DBRAIN1",	8},
-	
-    {-1}
+    {true,	"DBRAIN4",	"DBRAIN1",	8}
 };
+
+// Each definition contributes at most one entry to the runtime array.
+static_assert(sizeof(animdefs) / sizeof(animdefs[0]) <= MAXANIMS);
 
 anim_t		anims[MAXANIMS];
 anim_t*		lastanim;
@@ -151,40 +148,37 @@ extern  line_t*	linespeciallist[MAXLINEANIMS];
 
 void P_InitPicAnims (void)
 {
-    int		i;
-
-    
     //	Init animation
     lastanim = anims;
-    for (i=0 ; animdefs[i].istexture != -1 ; i++)
+    for (auto& definition : animdefs)
     {
-	if (animdefs[i].istexture)
+	if (definition.istexture)
 	{
 	    // different episode ?
-	    if (R_CheckTextureNumForName(animdefs[i].startname) == -1)
+	    if (R_CheckTextureNumForName(definition.startname) == -1)
 		continue;	
 
-	    lastanim->picnum = R_TextureNumForName (animdefs[i].endname);
-	    lastanim->basepic = R_TextureNumForName (animdefs[i].startname);
+	    lastanim->picnum = R_TextureNumForName (definition.endname);
+	    lastanim->basepic = R_TextureNumForName (definition.startname);
 	}
 	else
 	{
-	    if (W_CheckNumForName(animdefs[i].startname) == -1)
+	    if (W_CheckNumForName(definition.startname) == -1)
 		continue;
 
-	    lastanim->picnum = R_FlatNumForName (animdefs[i].endname);
-	    lastanim->basepic = R_FlatNumForName (animdefs[i].startname);
+	    lastanim->picnum = R_FlatNumForName (definition.endname);
+	    lastanim->basepic = R_FlatNumForName (definition.startname);
 	}
 
-	lastanim->istexture = animdefs[i].istexture;
+	lastanim->istexture = definition.istexture;
 	lastanim->numpics = lastanim->picnum - lastanim->basepic + 1;
 
 	if (lastanim->numpics < 2)
 	    I_Error ("P_InitPicAnims: bad cycle from %s to %s",
-		     animdefs[i].startname,
-		     animdefs[i].endname);
+		     definition.startname,
+		     definition.endname);
 	
-	lastanim->speed = animdefs[i].speed;
+	lastanim->speed = definition.speed;
 	lastanim++;
     }
 	

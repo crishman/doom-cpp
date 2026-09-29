@@ -26,13 +26,41 @@ static const char
 rcsid[] = "$Id: m_cheat.c,v 1.1 1997/02/03 21:24:34 b1 Exp $";
 
 #include "m_cheat.h"
+#include <array>
 
 //
 // CHEAT SEQUENCE PACKAGE
 //
 
-static int		firsttime = 1;
-static unsigned char	cheat_xlate_table[256];
+namespace
+{
+constexpr auto MakeCheatTranslationTable()
+{
+    std::array<unsigned char, 256> table{};
+    for (unsigned i = 0; i < table.size(); ++i)
+        table[i] = ScrambleCheatByte(static_cast<unsigned char>(i));
+    return table;
+}
+
+constexpr auto cheat_xlate_table = MakeCheatTranslationTable();
+
+constexpr bool CheckCheatTranslationTable()
+{
+    // Independently describe where each input bit goes in the legacy encoding.
+    constexpr unsigned destination_bits[] = {7, 6, 2, 4, 3, 5, 1, 0};
+    for (unsigned i = 0; i < cheat_xlate_table.size(); ++i)
+    {
+        unsigned expected = 0;
+        for (unsigned bit = 0; bit < 8; ++bit)
+            if (i & (1u << bit))
+                expected |= 1u << destination_bits[bit];
+        if (cheat_xlate_table[i] != expected)
+            return false;
+    }
+    return true;
+}
+static_assert(CheckCheatTranslationTable());
+}
 
 
 //
@@ -44,14 +72,7 @@ cht_CheckCheat
 ( cheatseq_t*	cht,
   char		key )
 {
-    int i;
     int rc = 0;
-
-    if (firsttime)
-    {
-	firsttime = 0;
-	for (i=0;i<256;i++) cheat_xlate_table[i] = SCRAMBLE(i);
-    }
 
     if (!cht->p)
 	cht->p = cht->sequence; // initialize if first time

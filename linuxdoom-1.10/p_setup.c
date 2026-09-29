@@ -27,6 +27,7 @@ rcsid[] = "$Id: p_setup.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 
 #include <math.h>
+#include <climits>
 
 #include "z_zone.h"
 
@@ -533,7 +534,9 @@ void P_GroupLines (void)
     }
 	
     // build line tables for each sector	
-    linebuffer = Z_Malloc (total*sizeof(*linebuffer), PU_LEVEL, 0);
+    if (total < 0 || static_cast<size_t>(total) > INT_MAX / sizeof(*linebuffer))
+        I_Error("P_GroupLines: sector line table is too large");
+    linebuffer = Z_Malloc (total * sizeof(*linebuffer), PU_LEVEL, 0);
     sector = sectors;
     for (i=0 ; i<numsectors ; i++, sector++)
     {
@@ -701,8 +704,7 @@ void P_Init (void)
 {
     P_InitSwitchList ();
     P_InitPicAnims ();
-    R_InitSprites (sprnames);
+    R_InitSprites (sprnames, NUMSPRITES);
 }
-
 
 

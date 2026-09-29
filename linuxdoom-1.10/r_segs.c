@@ -399,7 +399,10 @@ R_StoreWallRange
     
     // calculate rw_distance for scale calculation
     rw_normalangle = curline->angle + ANG90;
-    offsetangle = abs((int)(rw_normalangle-rw_angle1));
+    // Take the shortest distance around the unsigned binary-angle circle.
+    offsetangle = rw_normalangle - rw_angle1;
+    if (offsetangle > ANG180)
+	offsetangle = -offsetangle;
     
     if (offsetangle > ANG90)
 	offsetangle = ANG90;
@@ -743,4 +746,3 @@ R_StoreWallRange
     }
     ds_p++;
 }
-

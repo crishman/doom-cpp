@@ -1,25 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(doom-cpp
-    DESCRIPTION "Linux Doom 1.10, ported to C++"
-    LANGUAGES CXX)
+project(doom-cpp DESCRIPTION "Linux Doom 1.10, ported to C++" LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(DOOM_LEGACY_WARNINGS "Show warnings from not-yet-ported 1997 sources" OFF)
+option(DOOM_LEGACY_WARNINGS "Show warnings from legacy sources" OFF)
 
-# ---------------------------------------------------------------------------
-# Sources
-#
-# The tree is still id's original C. It is compiled as C++ in place rather
-# than renamed to .cpp, so that this commit is "it builds" and nothing else.
-# Rename each file to .cpp in the commit that actually ports it.
-#
-# ipx/ and sersrc/ are deliberately absent: they are DOS real-mode drivers
-# (dos.h, conio.h) and cannot be built on Linux at all.
-# ---------------------------------------------------------------------------
+# Compile the original .c files as C++ while they are migrated incrementally.
+# The DOS drivers in ipx/ and sersrc/ are not part of the Linux executable.
 set(DOOM_SOURCES
     linuxdoom-1.10/am_map.c
     linuxdoom-1.10/d_items.c
@@ -86,54 +76,22 @@ set(DOOM_SOURCES
 )
 
 set_source_files_properties(${DOOM_SOURCES} PROPERTIES LANGUAGE CXX)
-
 add_executable(doom ${DOOM_SOURCES})
-
 target_include_directories(doom PRIVATE linuxdoom-1.10)
 target_compile_definitions(doom PRIVATE NORMALUNIX LINUX)
 
-# ---------------------------------------------------------------------------
-# Compiler flags
-#
-# -fno-strict-aliasing and -fwrapv are load-bearing, not tuning. Doom type-puns
-# constantly (see the offsetof-by-hand in d_net.c) and relies on signed
-# overflow wrapping in its fixed-point math. Without these, gcc miscompiles
-# the renderer at -O2 in ways that look like content bugs.
-# ---------------------------------------------------------------------------
-target_compile_options(doom PRIVATE -fno-strict-aliasing -fwrapv)
-
-# -fpermissive is what lets 1997 C compile as C++ at all. Roughly 750 sites
-# are rejected without it, but they are not 750 problems:
-#
-#   448   void (*)() -> actionf_p1     one typedef in d_think.h
-#   ~150  void* -> T*                  unchecked malloc/Z_Malloc returns
-#    48   pointer <-> int truncation   REAL 64-bit bugs, see below
-#    26   int -> statenum_t
-#
-# The 48 truncations are genuine and will corrupt at runtime on x86-64;
-# they cluster in p_saveg.c (29) and m_misc.c (14). Configure with the
-# "warn" preset to list them. Drop -fpermissive once the tree is ported.
-target_compile_options(doom PRIVATE -fpermissive)
-
+# Retain the legacy arithmetic/aliasing behavior and permit unported C idioms.
+target_compile_options(doom PRIVATE -fno-strict-aliasing -fwrapv -fpermissive)
 if(DOOM_LEGACY_WARNINGS)
     target_compile_options(doom PRIVATE -Wall -Wextra)
 else()
-    # A warning-enabled build of unported 1997 code is thousands of lines of
-    # noise. Turn warnings on per-file, in the commit that ports that file.
     target_compile_options(doom PRIVATE -w)
 endif()
 
-# ---------------------------------------------------------------------------
-# X11 (i_video.c uses Xlib + the MIT-SHM extension + DGA)
-# ---------------------------------------------------------------------------
 find_package(X11 REQUIRED)
-
 if(NOT X11_XShm_INCLUDE_PATH)
-    message(FATAL_ERROR
-        "X11/extensions/XShm.h not found, needed by linuxdoom-1.10/i_video.c.\n"
-        "  Install it with:  sudo apt install libxext-dev")
+    message(FATAL_ERROR "X11/extensions/XShm.h is required (install libxext-dev).")
 endif()
-
 target_link_libraries(doom PRIVATE X11::X11 X11::Xext m)
 
 install(TARGETS doom RUNTIME DESTINATION bin)
