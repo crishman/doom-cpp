@@ -1,0 +1,43 @@
+# Iterative adoption: this is tier 1 only. Every check here is one that would
+# have caught a bug already found in this port by hand or by a sanitizer, and
+# each is cheap and low-noise. Widen a tier at a time, and only once the
+# current tier reports clean, so the list never becomes background noise.
+#
+#   tier 1 (here)  memory/sizeof/integer mistakes the C-to-C++ move exposed
+#   tier 2         rest of bugprone-*, then clang-analyzer-*
+#   tier 3         performance-*
+#   tier 4         readability-* and modernize-*, which will be loud on 1997
+#                  code and are worth doing only file-by-file as it is ported
+#
+# Rationale for the specific picks: sizeof-expression catches
+# memset(ptr, 0, sizeof(ptr)), which is exactly the mousebuttons/joybuttons
+# overrun; suspicious-memset-usage and undefined-memory-manipulation catch the
+# memset(sprtemp, -1, ...) sentinel that a 1-byte bool could not hold.
+
+Checks: >
+  -*,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-memset-usage,
+  bugprone-undefined-memory-manipulation,
+  bugprone-integer-division,
+  bugprone-macro-parentheses,
+  bugprone-signed-char-misuse,
+  bugprone-too-small-loop-variable,
+  bugprone-suspicious-string-compare
+
+# Only our own headers; X11 and libstdc++ are not ours to fix.
+# The compile database carries -Werror, which would turn clang's own warnings
+# into errors and make clang-tidy abandon a TU after 20 of them ("too many
+# errors emitted"), silently truncating the analysis. -Wno-unknown-pragmas
+# covers the ~840 `#pragma interface` directives the 1997 headers still carry;
+# that GCC feature is long obsolete and clang has never known it. Removing
+# those pragmas outright is a reasonable cleanup, but it is churn across ~40
+# headers and shouldn't gate static analysis.
+ExtraArgs:
+  - '-Wno-error'
+  - '-Wno-unknown-pragmas'
+
+HeaderFilterRegex: '(linuxdoom-1\.10|tests)/.*\.(h|hpp)$'
+
+WarningsAsErrors: ''
+FormatStyle: none

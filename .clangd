@@ -1,0 +1,22 @@
+# Point clangd at the strictest build: it has the engine plus the tests, so
+# every translation unit in the repo is covered by the index.
+CompileFlags:
+  CompilationDatabase: build/warn
+  Remove:
+    # Sanitizers cost clangd time and change nothing about the index.
+    - -fsanitize=*
+    - -fno-omit-frame-pointer
+    # -Werror would turn every editor diagnostic into an error marker.
+    - -Werror
+
+Diagnostics:
+  # Report only on this project's own headers, not X11 or libstdc++.
+  ClangTidy:
+    FastCheckFilter: Loose
+  UnusedIncludes: None
+  MissingIncludes: None
+
+InlayHints:
+  Enabled: true
+  ParameterNames: true
+  DeducedTypes: true
