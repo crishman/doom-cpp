@@ -72,7 +72,11 @@ typedef struct
 //
 typedef struct
 {
-    boolean	istexture;	// if false, it is a flat
+    // Tri-state, not a boolean: the animdefs[] table is terminated by a {-1}
+    // entry and P_InitPicAnims loops until istexture == -1. As a C++ bool that
+    // sentinel stores as 1, the loop never terminates, and it runs off the end
+    // of the table feeding garbage to R_TextureNumForName.
+    int		istexture;	// 1 texture, 0 flat, -1 end of table
     char	endname[9];
     char	startname[9];
     int		speed;

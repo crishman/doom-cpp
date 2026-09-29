@@ -429,7 +429,12 @@ typedef struct
     // If false use 0 for any position.
     // Note: as eight entries are available,
     //  we might as well insert the same name eight times.
-    boolean	rotate;
+    //
+    // Tri-state, not a boolean: R_InitSpriteDefs does memset(sprtemp,-1,..) to
+    // mark frames as not yet seen, and switches on -1/0/1 below. A C++ bool
+    // cannot hold -1, so every unset frame read back as true and sprite
+    // loading failed with "has rotations and a rot=0 lump".
+    int		rotate;		// 1 rotations, 0 none, -1 not yet set
 
     // Lump to use for view angles 0-7.
     short	lump[8];
