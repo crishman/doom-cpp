@@ -16,7 +16,7 @@ struct state_action_t
     void (*actor)(mobj_s*) = nullptr;
     void (*weapon)(player_s*, pspdef_s*) = nullptr;
 
-    constexpr state_action_t(std::nullptr_t) {}
+    constexpr state_action_t(std::nullptr_t = nullptr) {}
 
     // Template deduction lets existing {NULL} entries select the null overload.
     template<class Actor>

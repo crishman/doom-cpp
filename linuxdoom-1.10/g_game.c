@@ -26,6 +26,9 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include <string.h>
 #include <stdlib.h>
+#include <fstream>
+#include <limits>
+#include <vector>
 
 #include "doomdef.h" 
 #include "doomstat.h"
@@ -1207,14 +1210,28 @@ void G_DoLoadGame (void)
 	 
     gameaction = ga_nothing; 
 	 
-    M_ReadFile (savename, &savebuffer);
+    // The current level still occupies the zone while the file is read.
+    // Keep this temporary storage outside that small gameplay heap.
+    std::ifstream input(savename, std::ios::binary | std::ios::ate);
+    const auto length = input.tellg();
+    if (!input || length < SAVESTRINGSIZE + VERSIONSIZE + 3 + MAXPLAYERS + 3
+        || length > std::numeric_limits<int>::max())
+        I_Error("Invalid savegame file %s", savename);
+    std::vector<byte> filebuffer(static_cast<std::size_t>(length));
+    input.seekg(0);
+    if (!input.read(reinterpret_cast<char*>(filebuffer.data()), length))
+        I_Error("Couldn't read savegame %s", savename);
+    savebuffer = filebuffer.data();
     save_p = savebuffer + SAVESTRINGSIZE;
     
     // skip the description field 
     memset (vcheck,0,sizeof(vcheck)); 
     sprintf (vcheck,"version %i",VERSION); 
-    if (strcmp (reinterpret_cast<const char*>(save_p), vcheck))
-	return;				// bad version 
+    if (memcmp(save_p, vcheck, VERSIONSIZE))
+    {
+        save_p = savebuffer = nullptr;
+        return; // bad version; filebuffer releases the temporary storage
+    }
     save_p += VERSIONSIZE; 
 			 
     gameskill = static_cast<skill_t>(*save_p++);
@@ -1242,7 +1259,7 @@ void G_DoLoadGame (void)
 	I_Error ("Bad savegame");
     
     // done 
-    Z_Free (savebuffer); 
+    save_p = savebuffer = nullptr;
  
     if (setsizeneeded)
 	R_ExecuteSetViewSize ();

@@ -39,6 +39,9 @@ rcsid[] = "$Id: v_video.c,v 1.5 1997/02/03 22:45:13 b1 Exp $";
 
 #include "v_video.h"
 
+#include <algorithm>
+#include <cstdint>
+
 
 // Each screen is [SCREENWIDTH*SCREENHEIGHT]; 
 byte*				screens[5];	
@@ -200,133 +203,65 @@ V_CopyRect
 // V_DrawPatch
 // Masks a column based masked pic to the screen. 
 //
-void
-V_DrawPatch
-( int		x,
-  int		y,
-  int		scrn,
-  patch_t*	patch ) 
-{ 
-
-    int		count;
-    int		col; 
-    column_t*	column; 
-    byte*	desttop;
-    byte*	dest;
-    byte*	source; 
-    int		w; 
-	 
-    y -= SHORT(patch->topoffset); 
-    x -= SHORT(patch->leftoffset); 
-#ifdef RANGECHECK 
-    if (x<0
-	||x+SHORT(patch->width) >SCREENWIDTH
-	|| y<0
-	|| y+SHORT(patch->height)>SCREENHEIGHT 
-	|| (unsigned)scrn>4)
+static void DrawPatchClipped(int x, int y, int scrn, patch_t* patch, bool flipped)
+{
+    if (static_cast<unsigned>(scrn) >= 5)
     {
-      fprintf( stderr, "Patch at %d,%d exceeds LFB\n", x,y );
-      // No I_Error abort - what is up with TNT.WAD?
-      fprintf( stderr, "V_DrawPatch: bad patch (ignored)\n");
-      return;
+        I_Error("V_DrawPatch: invalid screen");
+        return;
     }
-#endif 
- 
+
+    const int width = SHORT(patch->width);
+    const int height = SHORT(patch->height);
+    if (width <= 0 || height <= 0)
+        return;
+
+    // Use wide coordinates so offset adjustment cannot overflow int.
+    const std::int64_t left = static_cast<std::int64_t>(x) - SHORT(patch->leftoffset);
+    const std::int64_t top = static_cast<std::int64_t>(y) - SHORT(patch->topoffset);
+    const auto xbegin = std::max<std::int64_t>(0, left);
+    const auto xend = std::min<std::int64_t>(SCREENWIDTH, left + width);
+    const auto ybegin = std::max<std::int64_t>(0, top);
+    const auto yend = std::min<std::int64_t>(SCREENHEIGHT, top + height);
+    if (xbegin >= xend || ybegin >= yend)
+        return;
+
     if (!scrn)
-	V_MarkRect (x, y, SHORT(patch->width), SHORT(patch->height)); 
+        V_MarkRect(static_cast<int>(xbegin), static_cast<int>(ybegin),
+                   static_cast<int>(xend - xbegin), static_cast<int>(yend - ybegin));
 
-    col = 0; 
-    desttop = screens[scrn]+y*SCREENWIDTH+x; 
-	 
-    w = SHORT(patch->width); 
-
-    for ( ; col<w ; x++, col++, desttop++)
-    { 
-	column = (column_t *)((byte *)patch + LONG(patch->columnofs[col])); 
- 
-	// step through the posts in a column 
-	while (column->topdelta != 0xff ) 
-	{ 
-	    source = (byte *)column + 3; 
-	    dest = desttop + column->topdelta*SCREENWIDTH; 
-	    count = column->length; 
-			 
-	    while (count--) 
-	    { 
-		*dest = *source++; 
-		dest += SCREENWIDTH; 
-	    } 
-	    column = (column_t *)(  (byte *)column + column->length 
-				    + 4 ); 
-	} 
-    }			 
-} 
- 
-//
-// V_DrawPatchFlipped 
-// Masks a column based masked pic to the screen.
-// Flips horizontally, e.g. to mirror face.
-//
-void
-V_DrawPatchFlipped
-( int		x,
-  int		y,
-  int		scrn,
-  patch_t*	patch ) 
-{ 
-
-    int		count;
-    int		col; 
-    column_t*	column; 
-    byte*	desttop;
-    byte*	dest;
-    byte*	source; 
-    int		w; 
-	 
-    y -= SHORT(patch->topoffset); 
-    x -= SHORT(patch->leftoffset); 
-#ifdef RANGECHECK 
-    if (x<0
-	||x+SHORT(patch->width) >SCREENWIDTH
-	|| y<0
-	|| y+SHORT(patch->height)>SCREENHEIGHT 
-	|| (unsigned)scrn>4)
+    for (int screenx = static_cast<int>(xbegin); screenx < xend; ++screenx)
     {
-      fprintf( stderr, "Patch origin %d,%d exceeds LFB\n", x,y );
-      I_Error ("Bad V_DrawPatch in V_DrawPatchFlipped");
+        const int col = static_cast<int>(screenx - left);
+        const int sourcecol = flipped ? width - 1 - col : col;
+        // The on-disk column directory has width entries, beyond columnofs[8].
+        int offset;
+        memcpy(&offset, reinterpret_cast<const byte*>(patch)
+                       + offsetof(patch_t, columnofs) + sourcecol * sizeof(offset),
+               sizeof(offset));
+        const byte* column = reinterpret_cast<const byte*>(patch) + LONG(offset);
+        while (column[0] != 0xff)
+        {
+            const auto posttop = top + column[0];
+            const auto first = std::max(ybegin, posttop);
+            const auto last = std::min(yend, posttop + column[1]);
+            for (auto screeny = first; screeny < last; ++screeny)
+                screens[scrn][screeny * SCREENWIDTH + screenx]
+                    = column[3 + screeny - posttop];
+            column += column[1] + 4;
+        }
     }
-#endif 
- 
-    if (!scrn)
-	V_MarkRect (x, y, SHORT(patch->width), SHORT(patch->height)); 
+}
 
-    col = 0; 
-    desttop = screens[scrn]+y*SCREENWIDTH+x; 
-	 
-    w = SHORT(patch->width); 
+void V_DrawPatch(int x, int y, int scrn, patch_t* patch)
+{
+    DrawPatchClipped(x, y, scrn, patch, false);
+}
 
-    for ( ; col<w ; x++, col++, desttop++) 
-    { 
-	column = (column_t *)((byte *)patch + LONG(patch->columnofs[w-1-col])); 
- 
-	// step through the posts in a column 
-	while (column->topdelta != 0xff ) 
-	{ 
-	    source = (byte *)column + 3; 
-	    dest = desttop + column->topdelta*SCREENWIDTH; 
-	    count = column->length; 
-			 
-	    while (count--) 
-	    { 
-		*dest = *source++; 
-		dest += SCREENWIDTH; 
-	    } 
-	    column = (column_t *)(  (byte *)column + column->length 
-				    + 4 ); 
-	} 
-    }			 
-} 
- 
+void V_DrawPatchFlipped(int x, int y, int scrn, patch_t* patch)
+{
+    DrawPatchClipped(x, y, scrn, patch, true);
+}
 
 
 //

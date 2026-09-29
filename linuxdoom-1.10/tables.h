@@ -79,6 +79,17 @@ inline constexpr int DBITS = (FRACBITS-SLOPEBITS);
 
 typedef unsigned angle_t;
 
+// Binary angles wrap modulo one turn; shift them as unsigned values.
+constexpr unsigned FineAngleIndex(angle_t angle)
+{
+    return angle >> ANGLETOFINESHIFT;
+}
+static_assert(FineAngleIndex(0) == 0);
+static_assert(FineAngleIndex(ANG180) == FINEANGLES / 2);
+static_assert(FineAngleIndex(0x80700000u) == 4110); // Previously indexed -4082.
+static_assert(FineAngleIndex(0xffffffffu) == FINEMASK);
+
+
 
 // Effective size is 2049;
 // The +1 size is to handle the case when x==y

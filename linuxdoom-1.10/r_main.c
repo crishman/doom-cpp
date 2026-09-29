@@ -39,6 +39,7 @@ static const char rcsid[] = "$Id: r_main.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include "r_local.h"
 #include "r_sky.h"
+#include "r_distance.h"
 
 
 
@@ -393,28 +394,7 @@ R_PointToDist
 ( fixed_t	x,
   fixed_t	y )
 {
-    int		angle;
-    fixed_t	dx;
-    fixed_t	dy;
-    fixed_t	temp;
-    fixed_t	dist;
-	
-    dx = abs(x - viewx);
-    dy = abs(y - viewy);
-	
-    if (dy>dx)
-    {
-	temp = dx;
-	dx = dy;
-	dy = temp;
-    }
-	
-    angle = (tantoangle[ FixedDiv(dy,dx)>>DBITS ]+ANG90) >> ANGLETOFINESHIFT;
-
-    // use as cosine
-    dist = FixedDiv (dx, finesine[angle] );	
-	
-    return dist;
+    return R_PointDistance(x, y, viewx, viewy);
 }
 
 
@@ -453,8 +433,8 @@ void R_InitPointToAngle (void)
 fixed_t R_ScaleFromGlobalAngle (angle_t visangle)
 {
     fixed_t		scale;
-    int			anglea;
-    int			angleb;
+    angle_t		anglea;
+    angle_t		angleb;
     int			sinea;
     int			sineb;
     fixed_t		num;
@@ -481,8 +461,8 @@ fixed_t R_ScaleFromGlobalAngle (angle_t visangle)
     angleb = ANG90 + (visangle-rw_normalangle);
 
     // both sines are allways positive
-    sinea = finesine[anglea>>ANGLETOFINESHIFT];	
-    sineb = finesine[angleb>>ANGLETOFINESHIFT];
+    sinea = finesine[FineAngleIndex(anglea)];
+    sineb = finesine[FineAngleIndex(angleb)];
     num = FixedMul(projection,sineb)<<detailshift;
     den = FixedMul(rw_distance,sinea);
 
