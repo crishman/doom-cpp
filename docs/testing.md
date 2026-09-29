@@ -8,7 +8,7 @@ cmake --build --preset warn
 ctest --test-dir build/warn --output-on-failure
 ```
 
-The `warn` preset enables strict warnings as errors and AddressSanitizer/UndefinedBehaviorSanitizer. The tests need no WAD, X display, or sound server. CMake still checks the game's X11 build dependencies during configuration.
+The `warn` preset enables strict warnings as errors and AddressSanitizer/UndefinedBehaviorSanitizer. The tests need no WAD, X display, or sound server. Configure with `-DDOOM_BUILD_GAME=OFF` to omit the game and its X11 build dependencies.
 
 CTest registers four random-stream tests:
 
