@@ -1227,7 +1227,7 @@ void G_DoLoadGame (void)
     // skip the description field 
     memset (vcheck,0,sizeof(vcheck)); 
     sprintf (vcheck,"version %i",VERSION); 
-    if (memcmp(save_p, vcheck, VERSIONSIZE))
+    if (memcmp(save_p, vcheck, VERSIONSIZE) != 0)
     {
         save_p = savebuffer = nullptr;
         return; // bad version; filebuffer releases the temporary storage

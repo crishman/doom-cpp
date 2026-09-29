@@ -38,7 +38,14 @@ byte*		save_p;
 
 // Pads save_p to a 4-byte boundary
 //  so that the load/save works on SGI&Gecko.
-#define PADSAVEP()	save_p += (4 - (reinterpret_cast<std::uintptr_t>(save_p) & 3)) & 3
+// Advance save_p to the next 4-byte boundary. This was a macro whose
+// replacement list was an unparenthesised assignment expression, so it was
+// only safe in statement position; a function has the same call syntax at the
+// two call sites and cannot be misused.
+static void PADSAVEP()
+{
+    save_p += (4 - (reinterpret_cast<std::uintptr_t>(save_p) & 3)) & 3;
+}
 
 
 

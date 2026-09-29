@@ -169,7 +169,7 @@ void W_AddFile (const char *filename)
     printf (" adding %s\n",filename);
     startlump = numlumps;
 	
-    if (strcmpi (filename+strlen(filename)-3 , "wad" ) )
+    if (strcmpi (filename+strlen(filename)-3 , "wad" ) != 0)
     {
 	// single lump file
 	fileinfo = &singleinfo;
@@ -182,10 +182,10 @@ void W_AddFile (const char *filename)
     {
 	// WAD file
 	read (handle, &header, sizeof(header));
-	if (strncmp(header.identification,"IWAD",4))
+	if (strncmp(header.identification,"IWAD",4) != 0)
 	{
 	    // Homebrew levels?
-	    if (strncmp(header.identification,"PWAD",4))
+	    if (strncmp(header.identification,"PWAD",4) != 0)
 	    {
 		I_Error ("Wad file %s doesn't have IWAD "
 			 "or PWAD id\n", filename);
@@ -545,7 +545,7 @@ void W_Profile (void)
 	    else
 		ch = 'P';
 	}
-	info[i][profilecount] = ch;
+	info[i][profilecount] = static_cast<unsigned char>(ch);
     }
     profilecount++;
 	

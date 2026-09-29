@@ -384,7 +384,7 @@ void M_LoadDefaults (void)
         {
             for (i=0; i<numdefaults; i++)
             {
-                if (strcmp(def, defaults[i].name))
+                if (strcmp(def, defaults[i].name) != 0)
                     continue;
                 len = strlen(strparm);
                 if (defaults[i].string_location && len >= 2
