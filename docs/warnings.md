@@ -1,6 +1,6 @@
 # Strict warning cleanup
 
-The `warn` preset builds C++17 with `-Wall -Wextra -Wpedantic -Werror`
+The `warn` preset builds C++20 with `-Wall -Wextra -Wpedantic -Werror`
 and ASan/UBSan. `-fpermissive` is removed: invalid C++ conversions now fail
 in every preset. The legacy arithmetic flags `-fwrapv` and
 `-fno-strict-aliasing` remain.

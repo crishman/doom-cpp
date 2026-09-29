@@ -22,7 +22,7 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 
 #include <unistd.h>
@@ -138,7 +138,7 @@ char	endstring[160];
 //
 // MENU TYPEDEFS
 //
-typedef struct
+typedef struct menuitem_s
 {
     // 0 = no cursor here, 1 = ok, 2 = arrows ok
     short	status;

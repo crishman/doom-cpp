@@ -24,7 +24,7 @@
 //-----------------------------------------------------------------------------
 
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 #include "i_system.h"
@@ -439,7 +439,6 @@ void R_InitTextures (void)
     
     std::vector<int> patchlookup;
     
-    int			totalwidth;
     int			nummappatches;
     int			offset;
     int			maxoff;
@@ -513,7 +512,6 @@ void R_InitTextures (void)
     texturewidthmask = static_cast<int*>(Z_Malloc (numtextures*sizeof(*texturewidthmask), PU_STATIC, 0));
     textureheight = static_cast<fixed_t*>(Z_Malloc (numtextures*sizeof(*textureheight), PU_STATIC, 0));
 
-    totalwidth = 0;
     
     //	Really complex printing shit...
     temp1 = W_GetNumForName ("S_START");  // P_???????
@@ -593,7 +591,6 @@ void R_InitTextures (void)
 	texturewidthmask[i] = j-1;
 	textureheight[i] = texture->height<<FRACBITS;
 		
-	totalwidth += texture->width;
     }
 
     Z_Free (maptex1);
@@ -866,7 +863,7 @@ void R_PrecacheLevel (void)
 	
     for (th = thinkercap.next ; th != &thinkercap ; th=th->next)
     {
-	if (th->function.acp1 == (actionf_p1)P_MobjThinker)
+	if (th->function == P_Thinker<P_MobjThinker>)
 	    spritepresent[((mobj_t *)th)->sprite] = 1;
     }
 	

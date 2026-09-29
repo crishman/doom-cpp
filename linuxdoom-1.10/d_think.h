@@ -26,38 +26,54 @@
 #define __D_THINK__
 
 
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 
 
 //
-// Experimental stuff.
-// To compile this as "ANSI C with classes"
-//  we will need to handle the various
-//  action functions cleanly.
+// Thinkers are all invoked through one signature, so the indirect call in
+// P_RunThinkers is type-correct. Each concrete thinker keeps its own parameter
+// type and gets a generated thunk that performs the downcast; thinker_s is the
+// first member of every thinker struct, so the addresses coincide.
 //
-typedef  void (*actionf_v)();
-typedef  void (*actionf_p1)( void* );
-typedef  void (*actionf_p2)( void*, void* );
+// The previous arrangement stored them in a union of void(*)(void*) and called
+// them through that, which is undefined behaviour however identically the ABI
+// happens to pass the arguments. clang's -fsanitize=function reports it; gcc
+// has no such check.
+//
+struct thinker_s;
 
-typedef union
+using think_t = void (*)(struct thinker_s*);
+
+template<auto Fn>
+struct thinker_thunk;
+
+template<class T, void (*Fn)(T*)>
+struct thinker_thunk<Fn>
 {
-  actionf_p1	acp1;
-  actionf_v	acv;
-  actionf_p2	acp2;
+    static void call(struct thinker_s* thinker)
+    {
+	Fn(reinterpret_cast<T*>(thinker));
+    }
+};
 
-} actionf_t;
+// P_Thinker<T_MoveFloor> is what gets stored, and the same expression compares
+// equal afterwards, so identifying a thinker by its function still works --
+// which p_saveg.cpp depends on to tell the thinker types apart.
+//
+// That makes distinct thinkers needing distinct addresses a correctness
+// requirement, not a detail. Identical-COMDAT-folding linkers (MSVC's
+// /OPT:ICF, lld's --icf) merge functions with identical bodies into one
+// address and break it silently: a door then compares equal to a ceiling and
+// the savegame records the wrong type. CMakeLists.txt passes /OPT:NOICF for
+// MSVC release builds. savegame_tests covers this -- it fails if folding is
+// ever enabled, so leave its thinker stubs empty and therefore foldable.
+template<auto Fn>
+inline constexpr think_t P_Thinker = &thinker_thunk<Fn>::call;
 
-
-
-
-
-// Historically, "think_t" is yet another
-//  function pointer to a routine to handle
-//  an actor.
-typedef actionf_t  think_t;
+// Marks a thinker for removal at the end of the tic. A real function rather
+// than a cast -1 so the type system stays honest; it is never called.
+void P_ThinkerRemoved(struct thinker_s* thinker);
+inline constexpr think_t THINKER_REMOVED = &P_ThinkerRemoved;
 
 
 // Doubly linked list of actors.

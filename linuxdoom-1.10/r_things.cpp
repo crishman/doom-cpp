@@ -22,7 +22,7 @@
 //-----------------------------------------------------------------------------
 
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: r_things.c,v 1.5 1997/02/03 16:47:56 b1 Exp $";
 
 

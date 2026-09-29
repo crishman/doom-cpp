@@ -37,23 +37,24 @@ typedef unsigned char byte;
 #endif
 
 
-// Predefined with some OS.
-#ifdef LINUX
-#include <values.h>
-#else
-#define MAXCHAR		((char)0x7f)
-#define MAXSHORT	((short)0x7fff)
+// These came from <values.h> on Linux and from hand-written fallbacks
+// everywhere else. <values.h> is a deprecated SVID header that does not exist
+// on macOS or Windows, and the fallbacks resolved to the same values anyway,
+// so both branches are gone in favour of <climits>.
+//
+// That also corrects MAXLONG/MINLONG, which the fallback defined as the 32-bit
+// limits; long is 64-bit on LP64. Neither is used anywhere in the tree, but a
+// knowingly wrong macro is not worth keeping.
+#include <climits>
 
-// Max pos 32-bit int.
-#define MAXINT		((int)0x7fffffff)	
-#define MAXLONG		((long)0x7fffffff)
-#define MINCHAR		((char)0x80)
-#define MINSHORT	((short)0x8000)
-
-// Max negative 32-bit integer.
-#define MININT		((int)0x80000000)	
-#define MINLONG		((long)0x80000000)
-#endif
+#define MAXCHAR		SCHAR_MAX
+#define MAXSHORT	SHRT_MAX
+#define MAXINT		INT_MAX
+#define MAXLONG		LONG_MAX
+#define MINCHAR		SCHAR_MIN
+#define MINSHORT	SHRT_MIN
+#define MININT		INT_MIN
+#define MINLONG		LONG_MIN
 
 
 

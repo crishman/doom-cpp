@@ -22,7 +22,7 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 #include "z_zone.h"
@@ -73,6 +73,16 @@ void P_AddThinker (thinker_t* thinker)
 
 
 //
+// P_ThinkerRemoved
+// Tag only. A thinker whose function is this one is freed on its next turn in
+// P_RunThinkers; it is compared against, never called.
+//
+void P_ThinkerRemoved (thinker_t*)
+{
+}
+
+
+//
 // P_RemoveThinker
 // Deallocation is lazy -- it will not actually be freed
 // until its thinking turn comes up.
@@ -80,7 +90,7 @@ void P_AddThinker (thinker_t* thinker)
 void P_RemoveThinker (thinker_t* thinker)
 {
   // FIXME: NOP.
-  thinker->function.acv = (actionf_v)(-1);
+  thinker->function = THINKER_REMOVED;
 }
 
 
@@ -105,7 +115,7 @@ void P_RunThinkers (void)
     currentthinker = thinkercap.next;
     while (currentthinker != &thinkercap)
     {
-	if ( currentthinker->function.acv == (actionf_v)(-1) )
+	if ( currentthinker->function == THINKER_REMOVED )
 	{
 	    // time to remove it
 	    currentthinker->next->prev = currentthinker->prev;
@@ -114,8 +124,8 @@ void P_RunThinkers (void)
 	}
 	else
 	{
-	    if (currentthinker->function.acp1)
-		currentthinker->function.acp1 (currentthinker);
+	    if (currentthinker->function)
+		currentthinker->function (currentthinker);
 	}
 	currentthinker = currentthinker->next;
     }

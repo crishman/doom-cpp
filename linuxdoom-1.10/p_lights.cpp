@@ -22,7 +22,7 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char
+[[maybe_unused]] static const char
 rcsid[] = "$Id: p_lights.c,v 1.5 1997/02/03 22:45:11 b1 Exp $";
 
 
@@ -77,7 +77,7 @@ void P_SpawnFireFlicker (sector_t*	sector)
 
     P_AddThinker (&flick->thinker);
 
-    flick->thinker.function.acp1 = (actionf_p1) T_FireFlicker;
+    flick->thinker.function = P_Thinker<T_FireFlicker>;
     flick->sector = sector;
     flick->maxlight = sector->lightlevel;
     flick->minlight = P_FindMinSurroundingLight(sector,sector->lightlevel)+16;
@@ -132,7 +132,7 @@ void P_SpawnLightFlash (sector_t*	sector)
 
     P_AddThinker (&flash->thinker);
 
-    flash->thinker.function.acp1 = (actionf_p1) T_LightFlash;
+    flash->thinker.function = P_Thinker<T_LightFlash>;
     flash->sector = sector;
     flash->maxlight = sector->lightlevel;
 
@@ -192,7 +192,7 @@ P_SpawnStrobeFlash
     flash->sector = sector;
     flash->darktime = fastOrSlow;
     flash->brighttime = STROBEBRIGHT;
-    flash->thinker.function.acp1 = (actionf_p1) T_StrobeFlash;
+    flash->thinker.function = P_Thinker<T_StrobeFlash>;
     flash->maxlight = sector->lightlevel;
     flash->minlight = P_FindMinSurroundingLight(sector, sector->lightlevel);
 		
@@ -349,7 +349,7 @@ void P_SpawnGlowingLight(sector_t*	sector)
     g->sector = sector;
     g->minlight = P_FindMinSurroundingLight(sector,sector->lightlevel);
     g->maxlight = sector->lightlevel;
-    g->thinker.function.acp1 = (actionf_p1) T_Glow;
+    g->thinker.function = P_Thinker<T_Glow>;
     g->direction = -1;
 
     sector->special = 0;
